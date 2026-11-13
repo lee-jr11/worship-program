@@ -2,12 +2,12 @@ import { z } from 'zod';
 
 // Input payload schema from the frontend form
 export const GenerateProgramInputSchema = z.object({
-  theme: z.string().min(1, 'Theme is required').transform(t => t.trim()),
+  theme: z.string().trim().min(1, 'Theme is required'),
   week: z.coerce.number().int().min(1, 'Week must be at least 1').max(52, 'Week cannot exceed 52'),
-  verseReference: z.string().min(1, 'Bible verse reference is required').transform(r => r.trim()),
-  translation: z.string().min(1, 'Translation is required').default('NIV'),
-  verseText: z.string().min(1, 'Verse text cannot be empty').transform(t => t.trim()),
-  email: z.string().email('Please enter a valid email address').transform(e => e.trim().toLowerCase()),
+  verseReference: z.string().trim().min(1, 'Bible verse reference is required'),
+  translation: z.string().trim().min(1, 'Translation is required').default('NIV'),
+  verseText: z.string().trim().min(1, 'Verse text cannot be empty'),
+  email: z.string().trim().email('Please enter a valid email address').transform(e => e.toLowerCase()),
   accessCode: z.string().optional(),
 });
 

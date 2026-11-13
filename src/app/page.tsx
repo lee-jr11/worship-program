@@ -9,9 +9,7 @@ import {
   Loader2,
   RefreshCw,
   Send,
-  FileText,
   Mail,
-  Calendar,
   Sparkles,
 } from 'lucide-react';
 
@@ -36,27 +34,28 @@ export default function WorshipProgramApp() {
   const [translation, setTranslation] = useState<string>('NIV');
   const [verseText, setVerseText] = useState<string>('');
   const [email, setEmail] = useState<string>('');
-  const [accessCode, setAccessCode] = useState<string>('');
 
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ProgramResult | null>(null);
 
-  // Restore draft from localStorage on load
+  // Restore draft from localStorage on load asynchronously
   useEffect(() => {
     try {
       const saved = localStorage.getItem('worship_program_draft');
       if (saved) {
         const data = JSON.parse(saved);
-        if (data.week) setWeek(data.week);
-        if (data.theme) setTheme(data.theme);
-        if (data.verseReference) setVerseReference(data.verseReference);
-        if (data.translation) setTranslation(data.translation);
-        if (data.verseText) setVerseText(data.verseText);
-        if (data.email) setEmail(data.email);
+        setTimeout(() => {
+          if (data.week) setWeek(data.week);
+          if (data.theme) setTheme(data.theme);
+          if (data.verseReference) setVerseReference(data.verseReference);
+          if (data.translation) setTranslation(data.translation);
+          if (data.verseText) setVerseText(data.verseText);
+          if (data.email) setEmail(data.email);
+        }, 0);
       }
-    } catch (e) {
+    } catch {
       // Ignore storage errors
     }
   }, []);
@@ -68,7 +67,7 @@ export default function WorshipProgramApp() {
         'worship_program_draft',
         JSON.stringify({ week, theme, verseReference, translation, verseText, email })
       );
-    } catch (e) {
+    } catch {
       // Ignore storage errors
     }
   }, [week, theme, verseReference, translation, verseText, email]);
@@ -115,7 +114,6 @@ export default function WorshipProgramApp() {
           translation: translation.trim(),
           verseText: verseText.trim(),
           email: email.trim(),
-          accessCode: accessCode.trim() || undefined,
         }),
       });
 
@@ -126,8 +124,10 @@ export default function WorshipProgramApp() {
       }
 
       setResult(data);
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred. Please check your credentials and try again.');
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : 'An unexpected error occurred. Please check your credentials and try again.';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -199,7 +199,7 @@ export default function WorshipProgramApp() {
               </div>
               <div className="pt-1">
                 <span className="text-slate-500 block mb-1">Lesson Takeaway:</span>
-                <p className="font-medium text-slate-700 italic">"{result.program.lesson}"</p>
+                <p className="font-medium text-slate-700 italic">&ldquo;{result.program.lesson}&rdquo;</p>
               </div>
             </div>
 

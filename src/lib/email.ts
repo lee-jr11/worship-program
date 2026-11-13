@@ -65,11 +65,12 @@ export async function sendProgramEmail(options: SendProgramEmailOptions): Promis
       success: true,
       messageId: info.messageId,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Email Delivery Error]:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to send email via Gmail SMTP';
     return {
       success: false,
-      error: error.message || 'Failed to send email via Gmail SMTP',
+      error: errorMessage,
     };
   }
 }

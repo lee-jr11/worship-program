@@ -85,12 +85,13 @@ export async function POST(req: NextRequest) {
       docxBase64: docxBuffer.toString('base64'),
       program,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Generate API Error]:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred while generating the worship program.';
     return NextResponse.json(
       {
         success: false,
-        error: error.message || 'An unexpected error occurred while generating the worship program.',
+        error: errorMessage,
       },
       { status: 500 }
     );

@@ -70,8 +70,9 @@ async function run() {
       const filePath = path.join(outputDir, `TEST_WEEK_${sample.week}.docx`);
       fs.writeFileSync(filePath, docxBuffer);
       console.log(`✅ Saved docx to: ${filePath} (${docxBuffer.length} bytes)`);
-    } catch (err: any) {
-      console.error(`❌ Failed Week ${sample.week}:`, err.message || err);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`❌ Failed Week ${sample.week}:`, msg);
     }
   }
 

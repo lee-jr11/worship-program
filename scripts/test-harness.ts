@@ -37,11 +37,22 @@ const SAMPLE_WEEKS = [
 async function run() {
   console.log('=== Wednesday Worship Program Test Harness ===\n');
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === 'your_gemini_api_key_here') {
-    console.error('❌ Error: GEMINI_API_KEY is not set in .env.local');
-    console.log('Please add your free Gemini API key to worship-program/.env.local first.');
+  const deepseekKey = process.env.DEEPSEEK_API_KEY;
+  const geminiKey = process.env.GEMINI_API_KEY;
+
+  const hasDeepSeek = deepseekKey && deepseekKey !== 'your_deepseek_api_key_here';
+  const hasGemini = geminiKey && geminiKey !== 'your_gemini_api_key_here';
+
+  if (!hasDeepSeek && !hasGemini) {
+    console.error('❌ Error: Neither DEEPSEEK_API_KEY nor GEMINI_API_KEY is set in .env.local');
+    console.log('Please add your DeepSeek or Gemini API key to worship-program/.env.local first.');
     process.exit(1);
+  }
+
+  if (hasDeepSeek) {
+    console.log('⚡ Using DeepSeek (deepseek-chat) as AI provider.');
+  } else {
+    console.log('⚡ Using Google Gemini (gemini-2.0-flash) as AI provider.');
   }
 
   const outputDir = path.resolve(process.cwd(), 'test-output');

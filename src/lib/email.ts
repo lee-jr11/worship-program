@@ -1,4 +1,12 @@
 import nodemailer from 'nodemailer';
+import dns from 'dns';
+
+// Prevent Windows IPv6 DNS timeout on getaddrinfo
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch {
+  // Ignore in environments where not supported
+}
 
 export interface SendProgramEmailOptions {
   to: string;
@@ -28,19 +36,19 @@ export async function sendProgramEmail(options: SendProgramEmailOptions): Promis
     throw new Error('GMAIL_USER or GMAIL_APP_PASSWORD is not configured.');
   }
 
-  // Create Nodemailer transporter using Gmail SMTP
+  // Use Nodemailer with 'service: gmail' (which includes pre-configured hosts and settings)
   const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // Port 465 is SSL/TLS
+    service: 'gmail',
     auth: {
-      user,
-      pass,
+      user: user.trim(),
+      pass: pass.replace(/\s+/g, ''), // Strip any spaces from the 16-character app password
     },
-    // Helpful timeouts
-    connectionTimeout: 15000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
+    tls: {
+      rejectUnauthorized: false, // Prevents certificate rejection on local proxies
+    },
+    connectionTimeout: 20000,
+    greetingTimeout: 15000,
+    socketTimeout: 20000,
   });
 
   const programDay = options.day || 'Wednesday';
@@ -50,8 +58,8 @@ export async function sendProgramEmail(options: SendProgramEmailOptions): Promis
 
   try {
     const info = await transporter.sendMail({
-      from: `"${fromName}" <${user}>`,
-      to,
+      from: `"${fromName}" <${user.trim()}>`,
+      to: to.trim(),
       subject,
       text: textBody,
       attachments: [
@@ -63,6 +71,7 @@ export async function sendProgramEmail(options: SendProgramEmailOptions): Promis
       ],
     });
 
+    console.log(`[Email Sent Successfully] MessageId: ${info.messageId}`);
     return {
       success: true,
       messageId: info.messageId,

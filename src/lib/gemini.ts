@@ -121,9 +121,27 @@ export interface GenerateProgramParams {
 }
 
 /**
- * DeepSeek API Caller (OpenAI-compatible format)
+ * Safely parses JSON from LLM response text, stripping markdown code blocks if present.
  */
-async function generateWithDeepSeek(apiKey: string, params: GenerateProgramParams): Promise<WorshipProgram> {
+function parseJsonFromLlm(text: string): any {
+  const cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+  const firstBrace = cleaned.indexOf('{');
+  const lastBrace = cleaned.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    return JSON.parse(cleaned.substring(firstBrace, lastBrace + 1));
+  }
+  return JSON.parse(cleaned);
+}
+
+/**
+ * OpenAI-compatible API Caller (DeepSeek, TokenHarbor, OpenRouter, etc.)
+ */
+async function generateWithOpenAICompatible(
+  apiKey: string,
+  params: GenerateProgramParams,
+  customBaseUrl?: string,
+  customModel?: string
+): Promise<WorshipProgram> {
   const day = params.day || 'Wednesday';
   const userPrompt = `Generate the ${day} Worship Program in valid JSON for:
 Day: ${day}
@@ -132,38 +150,73 @@ Theme: ${params.theme}
 Bible Verse Reference: ${params.verseReference}
 Translation: ${params.translation}${params.verseText ? `\nVerse Text: ${params.verseText}` : ''}`;
 
+  // Determine endpoint URL
+  let endpoint = customBaseUrl || process.env.AI_BASE_URL || process.env.DEEPSEEK_BASE_URL;
+  if (!endpoint) {
+    // If key looks like a TokenHarbor key (e.g. starts with thk_ or th_) or user set TOKENHARBOR
+    if (apiKey.startsWith('thk_') || apiKey.startsWith('th_') || process.env.TOKENHARBOR_API_KEY) {
+      endpoint = 'https://tokenharbor.ai/v1';
+    } else {
+      endpoint = 'https://api.deepseek.com';
+    }
+  }
+
+  // Normalize endpoint URL to /chat/completions
+  const cleanBase = endpoint.replace(/\/+$/, '');
+  const completionsUrl = cleanBase.endsWith('/chat/completions')
+    ? cleanBase
+    : cleanBase.endsWith('/v1')
+    ? `${cleanBase}/chat/completions`
+    : `${cleanBase}/v1/chat/completions`;
+
+  // Determine model
+  const model =
+    customModel ||
+    process.env.AI_MODEL ||
+    process.env.DEEPSEEK_MODEL ||
+    (endpoint.includes('tokenharbor') ? 'deepseek-v4.1-flash:free' : 'deepseek-chat');
+
+  console.log(`[AI Request] Dispatching to: ${completionsUrl} (model: ${model})`);
+
   let lastError: Error | null = null;
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      const response = await fetch('https://api.deepseek.com/chat/completions', {
+      // Build request body
+      const requestBody: any = {
+        model,
+        messages: [
+          { role: 'system', content: SYSTEM_INSTRUCTION },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.7,
+      };
+
+      // Add response_format on first attempt (some proxies may not support json_object)
+      if (attempt === 1) {
+        requestBody.response_format = { type: 'json_object' };
+      }
+
+      const response = await fetch(completionsUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${apiKey}`,
         },
-        body: JSON.stringify({
-          model: 'deepseek-chat',
-          response_format: { type: 'json_object' },
-          messages: [
-            { role: 'system', content: SYSTEM_INSTRUCTION },
-            { role: 'user', content: userPrompt },
-          ],
-          temperature: 0.7,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`DeepSeek API error (${response.status}): ${errorText}`);
+        throw new Error(`API error (${response.status}): ${errorText}`);
       }
 
       const data = await response.json();
       const content = data.choices?.[0]?.message?.content;
       if (!content) {
-        throw new Error('DeepSeek returned an empty response.');
+        throw new Error('AI returned an empty response.');
       }
 
-      const parsedJson = JSON.parse(content);
+      const parsedJson = parseJsonFromLlm(content);
       parsedJson.day = day;
       parsedJson.memory_verse.reference = params.verseReference.trim();
       parsedJson.memory_verse.translation = params.translation.trim();
@@ -176,11 +229,11 @@ Translation: ${params.translation}${params.verseText ? `\nVerse Text: ${params.v
       return WorshipProgramSchema.parse(parsedJson);
     } catch (err: unknown) {
       lastError = err instanceof Error ? err : new Error(String(err));
-      console.warn(`[DeepSeek Attempt ${attempt} Failed]:`, lastError.message);
+      console.warn(`[AI Attempt ${attempt} Failed]:`, lastError.message);
     }
   }
 
-  throw new Error(`Failed to generate valid worship program from DeepSeek: ${lastError?.message}`);
+  throw new Error(`Failed to generate valid worship program: ${lastError?.message}`);
 }
 
 /**
@@ -215,7 +268,7 @@ Translation: ${params.translation}${params.verseText ? `\nVerse Text: ${params.v
         throw new Error('Gemini returned an empty response.');
       }
 
-      const parsedJson = JSON.parse(responseText);
+      const parsedJson = parseJsonFromLlm(responseText);
       parsedJson.day = day;
       parsedJson.memory_verse.reference = params.verseReference.trim();
       parsedJson.memory_verse.translation = params.translation.trim();
@@ -237,21 +290,36 @@ Translation: ${params.translation}${params.verseText ? `\nVerse Text: ${params.v
 
 /**
  * Universal Worship Program Generator:
- * Automatically uses DeepSeek if DEEPSEEK_API_KEY is configured,
- * or Gemini if GEMINI_API_KEY is configured.
+ * Automatically detects whether you are using:
+ * 1. TokenHarbor / OpenAI-compatible proxy (TOKENHARBOR_API_KEY or AI_BASE_URL)
+ * 2. DeepSeek (DEEPSEEK_API_KEY)
+ * 3. Google Gemini (GEMINI_API_KEY)
  */
 export async function generateWorshipProgram(params: GenerateProgramParams): Promise<WorshipProgram> {
-  const deepseekKey = process.env.DEEPSEEK_API_KEY;
-  if (deepseekKey && deepseekKey !== 'your_deepseek_api_key_here') {
-    return generateWithDeepSeek(deepseekKey, params);
+  // Check for TokenHarbor key explicitly
+  const tokenHarborKey = process.env.TOKENHARBOR_API_KEY;
+  if (tokenHarborKey && tokenHarborKey !== 'your_tokenharbor_api_key_here') {
+    return generateWithOpenAICompatible(
+      tokenHarborKey,
+      params,
+      process.env.AI_BASE_URL || 'https://tokenharbor.ai/v1',
+      process.env.AI_MODEL || 'deepseek-v4.1-flash:free'
+    );
   }
 
+  // Check for DeepSeek / Generic key
+  const deepseekKey = process.env.DEEPSEEK_API_KEY;
+  if (deepseekKey && deepseekKey !== 'your_deepseek_api_key_here') {
+    return generateWithOpenAICompatible(deepseekKey, params);
+  }
+
+  // Check for Gemini key
   const geminiKey = process.env.GEMINI_API_KEY;
   if (geminiKey && geminiKey !== 'your_gemini_api_key_here') {
     return generateWithGemini(geminiKey, params);
   }
 
   throw new Error(
-    'No valid AI API key found. Please provide either DEEPSEEK_API_KEY or GEMINI_API_KEY in .env.local.'
+    'No valid AI API key found. Please provide TOKENHARBOR_API_KEY, DEEPSEEK_API_KEY, or GEMINI_API_KEY in .env.local.'
   );
 }

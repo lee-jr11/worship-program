@@ -20,6 +20,7 @@ interface ProgramResult {
   emailSent: boolean;
   emailError?: string;
   program: {
+    day?: string;
     week_number: number;
     theme: string;
     focus: string;
@@ -28,11 +29,11 @@ interface ProgramResult {
 }
 
 export default function WorshipProgramApp() {
-  const [week, setWeek] = useState<number>(1);
+  const [day, setDay] = useState<string>('Wednesday');
+  const [week, setWeek] = useState<string>('');
   const [theme, setTheme] = useState<string>('');
   const [verseReference, setVerseReference] = useState<string>('');
   const [translation, setTranslation] = useState<string>('NIV');
-  const [verseText, setVerseText] = useState<string>('');
   const [email, setEmail] = useState<string>('');
 
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
@@ -47,11 +48,11 @@ export default function WorshipProgramApp() {
       if (saved) {
         const data = JSON.parse(saved);
         setTimeout(() => {
-          if (data.week) setWeek(data.week);
+          if (data.day) setDay(data.day);
+          if (data.week !== undefined && data.week !== null) setWeek(String(data.week));
           if (data.theme) setTheme(data.theme);
           if (data.verseReference) setVerseReference(data.verseReference);
           if (data.translation) setTranslation(data.translation);
-          if (data.verseText) setVerseText(data.verseText);
           if (data.email) setEmail(data.email);
         }, 0);
       }
@@ -65,28 +66,39 @@ export default function WorshipProgramApp() {
     try {
       localStorage.setItem(
         'worship_program_draft',
-        JSON.stringify({ week, theme, verseReference, translation, verseText, email })
+        JSON.stringify({ day, week, theme, verseReference, translation, email })
       );
     } catch {
       // Ignore storage errors
     }
-  }, [week, theme, verseReference, translation, verseText, email]);
+  }, [day, week, theme, verseReference, translation, email]);
+
+  const handleWeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    // Allow empty string or numbers only
+    if (val === '' || /^\d+$/.test(val)) {
+      setWeek(val);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    // Basic client validation
+    if (!day.trim()) {
+      setError('Please provide a day of worship (e.g. Wednesday, Sunday).');
+      return;
+    }
+    if (!week.trim() || Number(week) < 1 || Number(week) > 52) {
+      setError('Please enter a valid week number between 1 and 52.');
+      return;
+    }
     if (!theme.trim()) {
       setError('Please provide a sermon / program theme.');
       return;
     }
     if (!verseReference.trim()) {
       setError('Please provide a scripture reference (e.g. Genesis 12:1-4a).');
-      return;
-    }
-    if (!verseText.trim()) {
-      setError('Please paste the scripture text.');
       return;
     }
     if (!email.trim() || !email.includes('@')) {
@@ -108,11 +120,11 @@ export default function WorshipProgramApp() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          day: day.trim() || 'Wednesday',
           week: Number(week),
           theme: theme.trim(),
           verseReference: verseReference.trim(),
           translation: translation.trim(),
-          verseText: verseText.trim(),
           email: email.trim(),
         }),
       });
@@ -146,10 +158,10 @@ export default function WorshipProgramApp() {
   const handleResetForNext = () => {
     setResult(null);
     setError(null);
-    setWeek((prev) => Math.min(prev + 1, 52));
+    const nextNum = Number(week) ? Math.min(Number(week) + 1, 52) : '';
+    setWeek(nextNum ? String(nextNum) : '');
     setTheme('');
     setVerseReference('');
-    setVerseText('');
   };
 
   return (
@@ -161,7 +173,7 @@ export default function WorshipProgramApp() {
             <BookOpen className="w-6 h-6" />
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-            Wednesday Worship Program
+            {day ? `${day} Worship Program` : 'Worship Program'} Generator
           </h1>
           <p className="mt-1.5 text-sm text-slate-600">
             Generate and dispatch your perfectly formatted church study bulletin in one click.
@@ -190,8 +202,8 @@ export default function WorshipProgramApp() {
 
             <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200/70 text-left space-y-2 text-xs sm:text-sm">
               <div className="flex justify-between border-b border-slate-200 pb-2">
-                <span className="text-slate-500">Week:</span>
-                <span className="font-medium text-slate-800">Week {result.program.week_number}</span>
+                <span className="text-slate-500">Day & Week:</span>
+                <span className="font-medium text-slate-800">{result.program.day || 'Wednesday'} — Week {result.program.week_number}</span>
               </div>
               <div className="flex justify-between border-b border-slate-200 pb-2">
                 <span className="text-slate-500">Theme:</span>
@@ -238,25 +250,40 @@ export default function WorshipProgramApp() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Row 1: Week Number & Theme */}
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              {/* Row 1: Day, Week, and Theme */}
+              <div className="grid grid-cols-1 sm:grid-cols-6 gap-4">
+                <div className="sm:col-span-2">
+                  <label htmlFor="day" className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Day
+                  </label>
+                  <input
+                    id="day"
+                    type="text"
+                    placeholder="e.g. Wednesday"
+                    value={day}
+                    onChange={(e) => setDay(e.target.value)}
+                    disabled={isLoading}
+                    required
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+                  />
+                </div>
+
                 <div className="sm:col-span-1">
                   <label htmlFor="week" className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Week #
+                    Week
                   </label>
-                  <div className="relative">
-                    <input
-                      id="week"
-                      type="number"
-                      min={1}
-                      max={52}
-                      value={week}
-                      onChange={(e) => setWeek(Number(e.target.value))}
-                      disabled={isLoading}
-                      required
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
-                    />
-                  </div>
+                  <input
+                    id="week"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    placeholder="e.g. 8"
+                    value={week}
+                    onChange={handleWeekChange}
+                    disabled={isLoading}
+                    required
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition text-center"
+                  />
                 </div>
 
                 <div className="sm:col-span-3">
@@ -316,27 +343,7 @@ export default function WorshipProgramApp() {
                 </div>
               </div>
 
-              {/* Row 3: Verse Text (User Pastes Here) */}
-              <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <label htmlFor="verseText" className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                    Verse Text (Paste Scripture)
-                  </label>
-                  <span className="text-[11px] text-slate-400">Pasted verbatim into document</span>
-                </div>
-                <textarea
-                  id="verseText"
-                  rows={4}
-                  placeholder="Paste the verse text here directly from your Bible app or browser..."
-                  value={verseText}
-                  onChange={(e) => setVerseText(e.target.value)}
-                  disabled={isLoading}
-                  required
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition text-sm leading-relaxed"
-                />
-              </div>
-
-              {/* Row 4: Recipient Email */}
+              {/* Row 3: Recipient Email */}
               <div>
                 <label htmlFor="email" className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                   Recipient Email
@@ -366,7 +373,7 @@ export default function WorshipProgramApp() {
                   {isLoading ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Generating with Gemini & Building .docx...
+                      Generating content & building document...
                     </>
                   ) : (
                     <>
@@ -382,8 +389,8 @@ export default function WorshipProgramApp() {
 
         {/* Footer */}
         <footer className="mt-8 text-center text-xs text-slate-400 space-y-1">
-          <p>Wednesday Worship Program Generator • Free Stack Edition</p>
-          <p>Powered by Next.js, Google Gemini 2.0 Flash, and Nodemailer</p>
+          <p>Worship Program Generator • Free Stack Edition</p>
+          <p>Powered by Next.js, AI, and Nodemailer</p>
         </footer>
       </div>
 
@@ -398,9 +405,15 @@ export default function WorshipProgramApp() {
 
             <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/80 space-y-2 text-xs mb-6">
               <div>
-                <span className="text-slate-500">Program:</span>
+                <span className="text-slate-500">Day & Week:</span>
                 <p className="font-semibold text-slate-800">
-                  Week {week} — {theme.toUpperCase()}
+                  {day} — Week {week}
+                </p>
+              </div>
+              <div>
+                <span className="text-slate-500">Theme:</span>
+                <p className="font-semibold text-slate-800">
+                  {theme.toUpperCase()}
                 </p>
               </div>
               <div>

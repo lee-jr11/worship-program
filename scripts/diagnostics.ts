@@ -28,16 +28,17 @@ async function runDiagnostics() {
   console.log('[1/4] Testing Input Validation (GenerateProgramInputSchema)...');
 
   const validGoodInput = {
+    day: 'Sunday',
     theme: 'Walking in Faith',
     week: 12,
     verseReference: 'Hebrews 11:1',
     translation: 'NIV',
-    verseText: 'Now faith is confidence in what we hope for...',
     email: 'pastor@church.org',
   };
   const parsedGood = GenerateProgramInputSchema.safeParse(validGoodInput);
   assert(parsedGood.success, 'Valid input parses successfully');
   if (parsedGood.success) {
+    assert(parsedGood.data.day === 'Sunday', 'Day is preserved');
     assert(parsedGood.data.week === 12, 'Week number coerced to integer');
     assert(parsedGood.data.email === 'pastor@church.org', 'Email normalized to lowercase');
   }
@@ -53,9 +54,9 @@ async function runDiagnostics() {
   const badEmail = GenerateProgramInputSchema.safeParse({ ...validGoodInput, email: 'notanemail' });
   assert(!badEmail.success, 'Rejects malformed email');
 
-  // Reject empty scripture
-  const badVerse = GenerateProgramInputSchema.safeParse({ ...validGoodInput, verseText: '   ' });
-  assert(!badVerse.success, 'Rejects empty verse text');
+  // Reject empty theme
+  const badTheme = GenerateProgramInputSchema.safeParse({ ...validGoodInput, theme: '   ' });
+  assert(!badTheme.success, 'Rejects empty theme');
 
   // ----------------------------------------------------------------
   // 2. OUTPUT SCHEMA CONTRACT TESTS
@@ -63,6 +64,7 @@ async function runDiagnostics() {
   console.log('\n[2/4] Testing LLM Output Contract (WorshipProgramSchema)...');
 
   const validProgramData: WorshipProgram = {
+    day: 'Wednesday',
     week_number: 4,
     theme: 'the purpose driven life',
     memory_verse: {

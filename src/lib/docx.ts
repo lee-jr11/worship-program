@@ -36,7 +36,7 @@ export async function buildDocx(program: WorshipProgram): Promise<Buffer> {
             spacing: { after: DOCX_STYLES.spacing.titleProgramAfter },
             children: [
               new TextRun({
-                text: 'WEDNESDAY WORSHIP PROGRAM',
+                text: `${(program.day || 'Wednesday').toUpperCase()} WORSHIP PROGRAM`,
                 bold: true,
                 size: DOCX_STYLES.titleSize,
               }),

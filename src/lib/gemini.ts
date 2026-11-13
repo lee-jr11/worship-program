@@ -1,41 +1,43 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import { WorshipProgram, WorshipProgramSchema } from './schema';
 
-const SYSTEM_INSTRUCTION = `You are an expert pastoral content writer for a weekly Wednesday worship program.
+const SYSTEM_INSTRUCTION = `You are an expert pastoral content writer for a weekly worship program.
 You will receive:
-1. Week number
-2. Theme
-3. Bible verse reference
-4. Scripture translation
-5. Bible verse text (provided by the user)
+1. Day of worship (e.g. Wednesday, Sunday, Friday)
+2. Week number
+3. Theme
+4. Bible verse reference
+5. Scripture translation
 
 Produce content adhering strictly to the required JSON format.
 Tone: Direct, pastoral, practical, second-person ("you"), challenging, no fluff.
 
 STRICT EDITORIAL RULES:
-1. theme: Always UPPERCASE.
-2. memory_verse:
+1. day: Use the specified day (e.g. "Wednesday", "Sunday").
+2. theme: Always UPPERCASE.
+3. memory_verse:
    - reference: Use the supplied reference.
-   - text: Use the supplied verse text VERBATIM. Do not alter, omit, or add scripture.
    - translation: Use the supplied translation.
-3. focus: Exactly one cohesive paragraph (5–8 sentences) interpreting the verse and explaining what it *really means* for daily life and character. You MUST end this paragraph with a powerful contrast of the form: "God does not [X]; He [Y]."
-4. lesson: Exactly one sentence, at most 20 words. A punchy, memorable spiritual takeaway.
-5. application_intro: Exactly one short framing sentence introducing the reflection/small-group discussion points.
-6. application: Exactly 4 items. Each item must have:
+   - text: Provide the accurate, full scripture verse text corresponding to the reference and translation. Do not summarize or paraphrase unless the translation is Paraphrased.
+4. focus: Exactly one cohesive paragraph (5–8 sentences) interpreting the verse and explaining what it *really means* for daily life and character. You MUST end this paragraph with a powerful contrast of the form: "God does not [X]; He [Y]."
+5. lesson: Exactly one sentence, at most 20 words. A punchy, memorable spiritual takeaway.
+6. application_intro: Exactly one short framing sentence introducing the reflection/small-group discussion points.
+7. application: Exactly 4 items. Each item must have:
    - title: A 2–4 word imperative title (verb + object/descriptor, e.g. "Leave the familiar", "Audit your circle", "Practice patience").
    - body: 1–3 sentences with a concrete, honest action or reflection prompt for small-group discussion or daily personal application.
-7. prayer: Exactly 2 items, 1–2 sentences each. Each must begin with "Pray for..." or "Pray that...".
+8. prayer: Exactly 2 items, 1–2 sentences each. Each must begin with "Pray for..." or "Pray that...".
 
 REQUIRED JSON OUTPUT STRUCTURE:
 {
+  "day": "Wednesday",
   "week_number": 4,
   "theme": "THE PURPOSE DRIVEN LIFE",
   "memory_verse": {
     "reference": "Genesis 12:1-4a",
-    "text": "The Lord had said to Abram...",
+    "text": "The Lord had said to Abram, “Go from your country, your people and your father’s household to the land I will show you. I will make you into a great nation, and I will bless you; I will make your name great, and you will be a blessing. I will bless those who bless you, and whoever curses you I will curse; and all peoples on earth will be blessed through you.” So Abram went, as the Lord had told him...",
     "translation": "NIV"
   },
-  "focus": "Walking in your God-given purpose always requires leaving comfort behind...",
+  "focus": "Walking in your God-given purpose always requires leaving comfort behind. In this passage, God calls Abram to step away from his family, his home, and everything familiar. What this really means is that a purpose-driven life is not about finding a safe, predictable path. It is about stepping into the unknown simply because God gave the command. God does not bless us just to make us comfortable; He blesses us so we become a conduit of blessing to others.",
   "lesson": "True purpose is found in stepping out of our comfort zones to follow God's direction.",
   "application_intro": "Discovering your purpose requires movement, not just planning. Let's break it down into key areas for small-group discussion and personal reflection:",
   "application": [
@@ -65,6 +67,7 @@ REQUIRED JSON OUTPUT STRUCTURE:
 const GEMINI_RESPONSE_SCHEMA = {
   type: Type.OBJECT,
   properties: {
+    day: { type: Type.STRING },
     week_number: { type: Type.INTEGER },
     theme: { type: Type.STRING },
     memory_verse: {
@@ -96,6 +99,7 @@ const GEMINI_RESPONSE_SCHEMA = {
     },
   },
   required: [
+    'day',
     'week_number',
     'theme',
     'memory_verse',
@@ -108,23 +112,25 @@ const GEMINI_RESPONSE_SCHEMA = {
 };
 
 export interface GenerateProgramParams {
+  day?: string;
   week: number;
   theme: string;
   verseReference: string;
   translation: string;
-  verseText: string;
+  verseText?: string;
 }
 
 /**
  * DeepSeek API Caller (OpenAI-compatible format)
  */
 async function generateWithDeepSeek(apiKey: string, params: GenerateProgramParams): Promise<WorshipProgram> {
-  const userPrompt = `Generate the Wednesday Worship Program in valid JSON for:
+  const day = params.day || 'Wednesday';
+  const userPrompt = `Generate the ${day} Worship Program in valid JSON for:
+Day: ${day}
 Week Number: ${params.week}
 Theme: ${params.theme}
 Bible Verse Reference: ${params.verseReference}
-Translation: ${params.translation}
-Verse Text: ${params.verseText}`;
+Translation: ${params.translation}${params.verseText ? `\nVerse Text: ${params.verseText}` : ''}`;
 
   let lastError: Error | null = null;
   for (let attempt = 1; attempt <= 2; attempt++) {
@@ -158,9 +164,12 @@ Verse Text: ${params.verseText}`;
       }
 
       const parsedJson = JSON.parse(content);
-      parsedJson.memory_verse.text = params.verseText.trim();
+      parsedJson.day = day;
       parsedJson.memory_verse.reference = params.verseReference.trim();
       parsedJson.memory_verse.translation = params.translation.trim();
+      if (params.verseText && params.verseText.trim()) {
+        parsedJson.memory_verse.text = params.verseText.trim();
+      }
       parsedJson.week_number = params.week;
       parsedJson.theme = params.theme.toUpperCase().trim();
 
@@ -179,12 +188,13 @@ Verse Text: ${params.verseText}`;
  */
 async function generateWithGemini(apiKey: string, params: GenerateProgramParams): Promise<WorshipProgram> {
   const ai = new GoogleGenAI({ apiKey });
-  const userPrompt = `Generate the Wednesday Worship Program for:
+  const day = params.day || 'Wednesday';
+  const userPrompt = `Generate the ${day} Worship Program for:
+Day: ${day}
 Week Number: ${params.week}
 Theme: ${params.theme}
 Bible Verse Reference: ${params.verseReference}
-Translation: ${params.translation}
-Verse Text: ${params.verseText}`;
+Translation: ${params.translation}${params.verseText ? `\nVerse Text: ${params.verseText}` : ''}`;
 
   let lastError: Error | null = null;
   for (let attempt = 1; attempt <= 2; attempt++) {
@@ -206,9 +216,12 @@ Verse Text: ${params.verseText}`;
       }
 
       const parsedJson = JSON.parse(responseText);
-      parsedJson.memory_verse.text = params.verseText.trim();
+      parsedJson.day = day;
       parsedJson.memory_verse.reference = params.verseReference.trim();
       parsedJson.memory_verse.translation = params.translation.trim();
+      if (params.verseText && params.verseText.trim()) {
+        parsedJson.memory_verse.text = params.verseText.trim();
+      }
       parsedJson.week_number = params.week;
       parsedJson.theme = params.theme.toUpperCase().trim();
 

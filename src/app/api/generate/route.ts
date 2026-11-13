@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { week, theme, verseReference, translation, verseText, email, accessCode } = parseResult.data;
+    const { day, week, theme, verseReference, translation, email, accessCode } = parseResult.data;
 
     // 2. Optional Access Code check (if configured in environment)
     const requiredCode = process.env.APP_ACCESS_CODE;
@@ -38,14 +38,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. AI Generation via Gemini 2.0 Flash
-    console.log(`[Generate API] Generating program for Week ${week}: ${theme}...`);
+    // 3. AI Generation
+    console.log(`[Generate API] Generating program for ${day} Week ${week}: ${theme}...`);
     const program = await generateWorshipProgram({
+      day,
       week,
       theme,
       verseReference,
       translation,
-      verseText,
     });
 
     // 4. Build .docx
@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
         docxBuffer,
         weekNumber: program.week_number,
         theme: program.theme,
+        day: program.day,
       });
 
       emailSent = emailResult.success;
@@ -75,13 +76,15 @@ export async function POST(req: NextRequest) {
       emailError = 'Gmail SMTP credentials not configured yet in environment.';
     }
 
+    const programDay = (program.day || 'Wednesday').toUpperCase();
+
     // 6. Return response (with base64 download buffer so user can download directly if needed)
     return NextResponse.json({
       success: true,
       emailSent,
       emailError,
       recipientEmail: email,
-      filename: `WEDNESDAY WORSHIP PROGRAM WEEK ${program.week_number}.docx`,
+      filename: `${programDay} WORSHIP PROGRAM WEEK ${program.week_number}.docx`,
       docxBase64: docxBuffer.toString('base64'),
       program,
     });

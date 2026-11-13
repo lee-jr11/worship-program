@@ -4,6 +4,7 @@ import { buildDocx } from '../src/lib/docx';
 import { WorshipProgram } from '../src/lib/schema';
 
 const WEEK_4_DATA: WorshipProgram = {
+  day: 'Wednesday',
   week_number: 4,
   theme: 'THE PURPOSE DRIVEN LIFE',
   memory_verse: {

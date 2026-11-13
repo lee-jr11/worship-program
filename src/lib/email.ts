@@ -5,6 +5,7 @@ export interface SendProgramEmailOptions {
   docxBuffer: Buffer;
   weekNumber: number;
   theme: string;
+  day?: string;
 }
 
 export interface SendEmailResult {
@@ -42,9 +43,10 @@ export async function sendProgramEmail(options: SendProgramEmailOptions): Promis
     socketTimeout: 15000,
   });
 
-  const filename = `WEDNESDAY WORSHIP PROGRAM WEEK ${weekNumber}.docx`;
-  const subject = `Wednesday Worship Program — Week ${weekNumber}: ${theme.toUpperCase()}`;
-  const textBody = `Attached is the Wednesday Worship Program for Week ${weekNumber} (${theme.toUpperCase()}).\n\nGod bless.`;
+  const programDay = options.day || 'Wednesday';
+  const filename = `${programDay.toUpperCase()} WORSHIP PROGRAM WEEK ${weekNumber}.docx`;
+  const subject = `${programDay} Worship Program — Week ${weekNumber}: ${theme.toUpperCase()}`;
+  const textBody = `Attached is the ${programDay} Worship Program for Week ${weekNumber} (${theme.toUpperCase()}).\n\nGod bless.`;
 
   try {
     const info = await transporter.sendMail({

@@ -1,4 +1,4 @@
-# Wednesday Worship Program Generator
+# Worship Program Generator
 
 Turns a weekly theme, week number, Bible verse, and recipient email into a perfectly formatted `.docx` delivered directly by email.
 

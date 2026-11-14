@@ -8,7 +8,6 @@ export const GenerateProgramInputSchema = z.object({
   verseReference: z.string().trim().min(1, 'Bible verse reference is required'),
   translation: z.string().trim().min(1, 'Translation is required').default('NIV'),
   email: z.string().trim().email('Please enter a valid email address').transform(e => e.toLowerCase()),
-  accessCode: z.string().optional(),
 });
 
 export type GenerateProgramInput = z.infer<typeof GenerateProgramInputSchema>;

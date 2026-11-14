@@ -34,7 +34,6 @@ export default function WorshipProgramApp() {
   const [verseReference, setVerseReference] = useState<string>('');
   const [translation, setTranslation] = useState<string>('NIV');
   const [email, setEmail] = useState<string>('');
-  const [accessCode, setAccessCode] = useState<string>('');
 
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -94,7 +93,6 @@ export default function WorshipProgramApp() {
           verseReference: verseReference.trim(),
           translation: translation.trim(),
           email: email.trim(),
-          accessCode: accessCode.trim() || undefined,
         }),
       });
 
@@ -331,22 +329,6 @@ export default function WorshipProgramApp() {
                 </div>
               </div>
 
-              {/* Row 4: Access code (only required when the deployment sets APP_ACCESS_CODE) */}
-              <div>
-                <label htmlFor="accessCode" className="block text-xs font-semibold text-slate-700 lowercase tracking-wider mb-1.5">
-                  access code
-                </label>
-                <input
-                  id="accessCode"
-                  type="password"
-                  autoComplete="off"
-                  value={accessCode}
-                  onChange={(e) => setAccessCode(e.target.value)}
-                  disabled={isLoading}
-                  placeholder="only if this deployment asks for one"
-                  className="field w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
-                />
-              </div>
 
               {/* Submit Button */}
               <div className="pt-2">

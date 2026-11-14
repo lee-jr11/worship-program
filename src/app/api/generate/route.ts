@@ -27,21 +27,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { day, week, theme, verseReference, translation, email, accessCode } = parseResult.data;
+    const { day, week, theme, verseReference, translation, email } = parseResult.data;
 
-    // 2. Optional Access Code check (if configured in environment)
-    const requiredCode = process.env.APP_ACCESS_CODE;
-    if (requiredCode && accessCode !== requiredCode) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'unauthorized: invalid access code.',
-        },
-        { status: 401 }
-      );
-    }
-
-    // 3. AI Generation
+    // 2. AI Generation
     console.log(`[Generate API] Generating program for ${day} Week ${week}: ${theme}...`);
     const program = await generateWorshipProgram({
       day,
@@ -51,11 +39,11 @@ export async function POST(req: NextRequest) {
       translation,
     });
 
-    // 4. Build .docx
+    // 3. Build .docx
     console.log(`[Generate API] Building .docx document...`);
     const docxBuffer = await buildDocx(program);
 
-    // 5. Deliver via Gmail SMTP
+    // 4. Deliver via Gmail SMTP
     let emailSent = false;
     let emailError: string | undefined;
 
@@ -81,7 +69,7 @@ export async function POST(req: NextRequest) {
 
     const programDay = (program.day || 'Wednesday').toUpperCase();
 
-    // 6. Return response (with base64 download buffer so user can download directly if needed)
+    // 5. Return response (with base64 download buffer so user can download directly if needed)
     return NextResponse.json({
       success: true,
       emailSent,

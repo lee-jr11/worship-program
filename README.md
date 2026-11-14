@@ -29,7 +29,6 @@ Turns a weekly theme, week number, Bible verse, and recipient email into a perfe
    - `GMAIL_USER`: Dedicated church / app Gmail address.
    - `GMAIL_APP_PASSWORD`: 16-character App Password generated from Google Account (Security → 2-Step Verification → App Passwords).
    - `FROM_NAME`: e.g., "Wednesday Worship Program"
-   - `APP_ACCESS_CODE`: (Optional) Passcode to protect the endpoint from public bot requests.
 
 3. **Run the development server:**
    ```bash
@@ -67,8 +66,8 @@ Turns a weekly theme, week number, Bible verse, and recipient email into a perfe
    - `GMAIL_USER`
    - `GMAIL_APP_PASSWORD`
    - `FROM_NAME`
-   - `APP_ACCESS_CODE` — **required for any public deployment.** Without it, anyone with the URL can spend your AI credits and send mail from your Gmail address. Enter the same value in the form's access code field.
-4. Deploy!
+4. (Recommended) Protect the public deployment at the hosting layer so strangers cannot spend your AI credits or send mail from `GMAIL_USER`: in Vercel, Project Settings → Deployment Protection (password or SSO). The app itself has no user-facing access code.
+5. Deploy!
 
 `/api/generate` is pinned to `export const runtime = 'nodejs'` with `maxDuration = 60`: nodemailer needs real TCP sockets, and Vercel blocks outbound port 25 while leaving Gmail's 465/587 open. The app has no localhost references and reads every integration detail from environment variables, so nothing needs editing per environment.
 

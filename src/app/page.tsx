@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   BookOpen,
   CheckCircle2,
@@ -40,38 +40,6 @@ export default function WorshipProgramApp() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ProgramResult | null>(null);
-
-  // Restore draft from localStorage on load asynchronously
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('worship_program_draft');
-      if (saved) {
-        const data = JSON.parse(saved);
-        setTimeout(() => {
-          if (data.day) setDay(data.day);
-          if (data.week !== undefined && data.week !== null) setWeek(String(data.week));
-          if (data.theme) setTheme(data.theme);
-          if (data.verseReference) setVerseReference(data.verseReference);
-          if (data.translation) setTranslation(data.translation);
-          if (data.email) setEmail(data.email);
-        }, 0);
-      }
-    } catch {
-      // Ignore storage errors
-    }
-  }, []);
-
-  // Save draft to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        'worship_program_draft',
-        JSON.stringify({ day, week, theme, verseReference, translation, email })
-      );
-    } catch {
-      // Ignore storage errors
-    }
-  }, [day, week, theme, verseReference, translation, email]);
 
   const handleWeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -353,7 +321,6 @@ export default function WorshipProgramApp() {
                   <input
                     id="email"
                     type="email"
-                    placeholder="yourchurch.pastor@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={isLoading}

@@ -257,7 +257,7 @@ async function runDiagnostics() {
         error: (message: string) => logs.push(message),
       },
     };
-    return { attempts, sent, logs, mailer, deps };
+    return { attempts, sent, logs, deps };
   };
 
   const transientError = () =>

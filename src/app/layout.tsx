@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Wednesday Worship Program Generator',
+  title: 'Worship Program Generator',
   description: 'Generate and dispatch weekly Wednesday worship program documents by email.',
 };
 

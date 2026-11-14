@@ -173,7 +173,7 @@ export default function WorshipProgramApp() {
             <BookOpen className="w-6 h-6" />
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-            {day ? `${day} Worship Program` : 'Worship Program'} Generator
+            Worship Program Generator
           </h1>
           <p className="mt-1.5 text-sm text-slate-600">
             Generate and dispatch your perfectly formatted church study bulletin in one click.

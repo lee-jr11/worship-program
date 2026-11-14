@@ -1,6 +1,7 @@
 import { GenerateProgramInputSchema, WorshipProgramSchema, WorshipProgram } from '../src/lib/schema';
 import { buildDocx } from '../src/lib/docx';
 import { normalizeLlmOutput } from '../src/lib/gemini';
+import { sendProgramEmail, ProgramMailMessage } from '../src/lib/email';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -26,7 +27,7 @@ async function runDiagnostics() {
   // ----------------------------------------------------------------
   // 1. INPUT SCHEMA VALIDATION TESTS
   // ----------------------------------------------------------------
-  console.log('[1/5] Testing Input Validation (GenerateProgramInputSchema)...');
+  console.log('[1/6] Testing Input Validation (GenerateProgramInputSchema)...');
 
   const validGoodInput = {
     day: 'Sunday',
@@ -62,7 +63,7 @@ async function runDiagnostics() {
   // ----------------------------------------------------------------
   // 2. OUTPUT SCHEMA CONTRACT TESTS
   // ----------------------------------------------------------------
-  console.log('\n[2/5] Testing LLM Output Contract (WorshipProgramSchema)...');
+  console.log('\n[2/6] Testing LLM Output Contract (WorshipProgramSchema)...');
 
   const validProgramData: WorshipProgram = {
     day: 'Wednesday',
@@ -113,7 +114,7 @@ async function runDiagnostics() {
   // ----------------------------------------------------------------
   // 3. DOCX BUILDER INTEGRITY TESTS
   // ----------------------------------------------------------------
-  console.log('\n[3/5] Testing Docx Document Generation...');
+  console.log('\n[3/6] Testing Docx Document Generation...');
 
   const startTime = Date.now();
   const buffer = await buildDocx(validProgramData);
@@ -129,7 +130,7 @@ async function runDiagnostics() {
   // ----------------------------------------------------------------
   // 4. ENVIRONMENT & SECURITY AUDIT
   // ----------------------------------------------------------------
-  console.log('\n[4/5] Security & Gitignore Audit...');
+  console.log('\n[4/6] Security & Gitignore Audit...');
 
   const gitignorePath = path.resolve(process.cwd(), '.gitignore');
   const gitignoreContent = fs.readFileSync(gitignorePath, 'utf-8');
@@ -146,7 +147,7 @@ async function runDiagnostics() {
   // ----------------------------------------------------------------
   // 5. LLM OUTPUT NORMALIZATION TESTS
   // ----------------------------------------------------------------
-  console.log('\n[5/5] Testing LLM output normalization (normalizeLlmOutput)...');
+  console.log('\n[5/6] Testing LLM output normalization (normalizeLlmOutput)...');
 
   const llmParams = {
     day: 'Sunday',
@@ -212,6 +213,113 @@ async function runDiagnostics() {
     throws(() => normalizeLlmOutput(makeRawProgram({ application: [] }), llmParams, 'Sunday')),
     'Throws when the output violates the contract (so the caller retries)'
   );
+
+  // ----------------------------------------------------------------
+  // 6. EMAIL DELIVERY RETRY TESTS
+  // ----------------------------------------------------------------
+  console.log('\n[6/6] Testing email retry behaviour (sendProgramEmail)...');
+
+  // Credentials are stubbed here and the transport is injected, so nothing leaves the machine.
+  const savedUser = process.env.GMAIL_USER;
+  const savedPass = process.env.GMAIL_APP_PASSWORD;
+  process.env.GMAIL_USER = 'harness@example.com';
+  process.env.GMAIL_APP_PASSWORD = 'dummy-app-password';
+
+  const emailOptions = {
+    to: 'recipient@example.com',
+    docxBuffer: buffer,
+    weekNumber: 4,
+    theme: 'THE PURPOSE DRIVEN LIFE',
+    day: 'Wednesday',
+  };
+
+  type AttemptOutcome = { messageId?: string } | Error;
+  const makeFakeMailer = (plan: (attempt: number) => AttemptOutcome) => {
+    const attempts: number[] = [];
+    const sent: ProgramMailMessage[] = [];
+    return {
+      attempts,
+      sent,
+      mailer: {
+        async sendMail(message: ProgramMailMessage) {
+          const attempt = attempts.length + 1;
+          attempts.push(attempt);
+          sent.push(message);
+          const outcome = plan(attempt);
+          if (outcome instanceof Error) throw outcome;
+          return outcome;
+        },
+      },
+    };
+  };
+
+  const transientError = () =>
+    Object.assign(new Error('DNS lookup for smtp.gmail.com timed out'), { code: 'ETIMEDOUT' });
+  const authError = () =>
+    Object.assign(new Error('Invalid login: 535-5.7.8 Username and Password not accepted'), { code: 'EAUTH' });
+
+  try {
+    // Happy path: no retry.
+    const happy = makeFakeMailer(() => ({ messageId: '<happy@example.com>' }));
+    const happyResult = await sendProgramEmail(emailOptions, {
+      createMailer: () => happy.mailer,
+      retryDelayMs: 1,
+    });
+    assert(happyResult.success, 'Sends successfully on the first attempt');
+    assert(happy.attempts.length === 1, 'A healthy send is never retried');
+    assert(happyResult.messageId === '<happy@example.com>', 'Message ID is surfaced to the caller');
+    assert(
+      happy.sent[0]?.attachments?.[0]?.filename === 'WEDNESDAY WORSHIP PROGRAM WEEK 4.docx',
+      'Attachment filename is built from day and week'
+    );
+
+    // Transient failure, then success.
+    const recovered = makeFakeMailer((attempt) => (attempt === 1 ? transientError() : { messageId: '<retried@example.com>' }));
+    const recoveredResult = await sendProgramEmail(emailOptions, {
+      createMailer: () => recovered.mailer,
+      retryDelayMs: 1,
+    });
+    assert(recoveredResult.success, 'Recovers when the retry succeeds');
+    assert(recovered.attempts.length === 2, 'A transient failure triggers exactly one retry');
+
+    // Transient failure twice: give up after two attempts.
+    const persistent = makeFakeMailer(() => transientError());
+    const persistentResult = await sendProgramEmail(emailOptions, {
+      createMailer: () => persistent.mailer,
+      retryDelayMs: 1,
+    });
+    assert(!persistentResult.success, 'Reports failure when the retry also fails');
+    assert(persistent.attempts.length === 2, 'Stops after two attempts, never more');
+    assert(
+      (persistentResult.error || '').includes('timed out'),
+      'Surfaces the underlying SMTP error message'
+    );
+
+    // Auth failure: never retried.
+    const auth = makeFakeMailer(() => authError());
+    const authResult = await sendProgramEmail(emailOptions, {
+      createMailer: () => auth.mailer,
+      retryDelayMs: 1,
+    });
+    assert(!authResult.success, 'Reports failure on an auth error');
+    assert(auth.attempts.length === 1, 'Auth errors are never retried');
+
+    // Non-transient protocol error: never retried.
+    const rejected = makeFakeMailer(() => Object.assign(new Error('Message rejected by relay'), { code: 'EMESSAGE' }));
+    const rejectedResult = await sendProgramEmail(emailOptions, {
+      createMailer: () => rejected.mailer,
+      retryDelayMs: 1,
+    });
+    assert(
+      !rejectedResult.success && rejected.attempts.length === 1,
+      'Non-transient errors are not retried'
+    );
+  } finally {
+    if (savedUser === undefined) delete process.env.GMAIL_USER;
+    else process.env.GMAIL_USER = savedUser;
+    if (savedPass === undefined) delete process.env.GMAIL_APP_PASSWORD;
+    else process.env.GMAIL_APP_PASSWORD = savedPass;
+  }
 
   console.log('\n====================================================');
   console.log(` RESULTS: ${passedTests} / ${totalTests} tests passed`);

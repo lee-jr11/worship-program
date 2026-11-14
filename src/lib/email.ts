@@ -22,6 +22,26 @@ export interface SendEmailResult {
   error?: string;
 }
 
+export interface ProgramMailMessage {
+  from: string;
+  to: string;
+  subject: string;
+  text: string;
+  attachments: { filename: string; content: Buffer; contentType: string }[];
+}
+
+/** The single transport capability this module needs; nodemailer's Transporter satisfies it. */
+export interface Mailer {
+  sendMail(message: ProgramMailMessage): Promise<{ messageId?: string }>;
+}
+
+export interface SendProgramEmailDeps {
+  /** Override for tests; defaults to a real nodemailer Gmail transport. */
+  createMailer?: (credentials: { user: string; pass: string }) => Mailer;
+  /** Backoff before the retry attempt. Defaults to 1500ms. */
+  retryDelayMs?: number;
+}
+
 // Network/DNS blips are worth one retry; auth and message errors are not.
 const RETRYABLE_SMTP_CODES = new Set(['ETIMEDOUT', 'ESOCKET', 'ECONNECTION', 'ECONNRESET', 'EPIPE', 'EAI_AGAIN', 'EDNS']);
 
@@ -33,11 +53,31 @@ function isTransientSmtpError(error: unknown): boolean {
   return /timed out|EAI_AGAIN|ENOTFOUND/i.test(error.message) && !/auth/i.test(error.message);
 }
 
+function createGmailMailer({ user, pass }: { user: string; pass: string }): Mailer {
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user, pass },
+    tls: {
+      rejectUnauthorized: false, // Prevents certificate rejection on local proxies
+    },
+    connectionTimeout: 20000,
+    greetingTimeout: 15000,
+    socketTimeout: 20000,
+  });
+
+  return {
+    sendMail: (message) => transporter.sendMail(message),
+  };
+}
+
 /**
  * Sends the generated .docx program to the specified recipient via Gmail SMTP.
  * Retries once on a transient connection/DNS failure so a blip does not fail the send.
  */
-export async function sendProgramEmail(options: SendProgramEmailOptions): Promise<SendEmailResult> {
+export async function sendProgramEmail(
+  options: SendProgramEmailOptions,
+  deps: SendProgramEmailDeps = {}
+): Promise<SendEmailResult> {
   const { to, docxBuffer, weekNumber, theme } = options;
 
   const user = process.env.GMAIL_USER;
@@ -48,19 +88,12 @@ export async function sendProgramEmail(options: SendProgramEmailOptions): Promis
     throw new Error('GMAIL_USER or GMAIL_APP_PASSWORD is not configured.');
   }
 
-  // Use Nodemailer with 'service: gmail' (which includes pre-configured hosts and settings)
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: user.trim(),
-      pass: pass.replace(/\s+/g, ''), // Strip any spaces from the 16-character app password
-    },
-    tls: {
-      rejectUnauthorized: false, // Prevents certificate rejection on local proxies
-    },
-    connectionTimeout: 20000,
-    greetingTimeout: 15000,
-    socketTimeout: 20000,
+  const createMailer = deps.createMailer ?? createGmailMailer;
+  const retryDelayMs = deps.retryDelayMs ?? 1500;
+
+  const mailer = createMailer({
+    user: user.trim(),
+    pass: pass.replace(/\s+/g, ''), // Strip any spaces from the 16-character app password
   });
 
   const programDay = options.day || 'Wednesday';
@@ -68,7 +101,7 @@ export async function sendProgramEmail(options: SendProgramEmailOptions): Promis
   const subject = `${programDay} Worship Program — Week ${weekNumber}: ${theme.toUpperCase()}`;
   const textBody = `Attached is the ${programDay} Worship Program for Week ${weekNumber} (${theme.toUpperCase()}).\n\nGod bless.`;
 
-  const message = {
+  const message: ProgramMailMessage = {
     from: `"${fromName}" <${user.trim()}>`,
     to: to.trim(),
     subject,
@@ -87,7 +120,7 @@ export async function sendProgramEmail(options: SendProgramEmailOptions): Promis
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const info = await transporter.sendMail(message);
+      const info = await mailer.sendMail(message);
       console.log(`[Email Sent Successfully] MessageId: ${info.messageId} (attempt ${attempt}/${maxAttempts})`);
       return {
         success: true,
@@ -98,7 +131,7 @@ export async function sendProgramEmail(options: SendProgramEmailOptions): Promis
       const willRetry = attempt < maxAttempts && isTransientSmtpError(error);
       console.error(`[Email Delivery Error${willRetry ? ' - retrying once' : ''}]:`, error);
       if (!willRetry) break;
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
     }
   }
 

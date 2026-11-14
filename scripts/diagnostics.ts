@@ -49,6 +49,13 @@ async function runDiagnostics() {
   const badWeekLow = GenerateProgramInputSchema.safeParse({ ...validGoodInput, week: 0 });
   assert(!badWeekLow.success, 'Rejects week 0 (min is 1)');
 
+  // Reject a missing or blank day instead of defaulting to Wednesday
+  const badOmittedDay = GenerateProgramInputSchema.safeParse({ ...validGoodInput, day: undefined });
+  assert(!badOmittedDay.success, 'Rejects an omitted day (no Wednesday default)');
+
+  const badBlankDay = GenerateProgramInputSchema.safeParse({ ...validGoodInput, day: '   ' });
+  assert(!badBlankDay.success, 'Rejects a blank day');
+
   const badWeekHigh = GenerateProgramInputSchema.safeParse({ ...validGoodInput, week: 53 });
   assert(!badWeekHigh.success, 'Rejects week 53 (max is 52)');
 

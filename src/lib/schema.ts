@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // Input payload schema from the frontend form
 export const GenerateProgramInputSchema = z.object({
-  day: z.string().trim().min(1, 'Day is required').default('Wednesday'),
+  day: z.string().trim().min(1, 'Day is required'),
   week: z.coerce.number().int().min(1, 'Week must be at least 1').max(52, 'Week cannot exceed 52'),
   theme: z.string().trim().min(1, 'Theme is required'),
   verseReference: z.string().trim().min(1, 'Bible verse reference is required'),

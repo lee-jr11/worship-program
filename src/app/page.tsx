@@ -88,7 +88,7 @@ export default function WorshipProgramApp() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          day: day.trim() || 'Wednesday',
+          day: day.trim(),
           week: Number(week),
           theme: theme.trim(),
           verseReference: verseReference.trim(),

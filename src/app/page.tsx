@@ -10,12 +10,14 @@ import {
   RefreshCw,
   Send,
   Mail,
+  Smartphone,
 } from 'lucide-react';
 
 interface ProgramResult {
   filename: string;
   docxBase64: string;
-  recipientEmail: string;
+  deliveryMethod?: 'device' | 'email';
+  recipientEmail?: string;
   emailSent: boolean;
   emailError?: string;
   program: {
@@ -33,6 +35,7 @@ export default function WorshipProgramApp() {
   const [theme, setTheme] = useState<string>('');
   const [verseReference, setVerseReference] = useState<string>('');
   const [translation, setTranslation] = useState<string>('NIV');
+  const [deliveryMethod, setDeliveryMethod] = useState<'device' | 'email'>('device');
   const [email, setEmail] = useState<string>('');
 
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
@@ -68,7 +71,7 @@ export default function WorshipProgramApp() {
       setError('please provide a scripture reference (e.g. genesis 12:1-4a).');
       return;
     }
-    if (!email.trim() || !email.includes('@')) {
+    if (deliveryMethod === 'email' && (!email.trim() || !email.includes('@'))) {
       setError('please enter a valid recipient email address.');
       return;
     }
@@ -92,7 +95,8 @@ export default function WorshipProgramApp() {
           theme: theme.trim(),
           verseReference: verseReference.trim(),
           translation: translation.trim(),
-          email: email.trim(),
+          deliveryMethod,
+          email: deliveryMethod === 'email' ? email.trim() : undefined,
         }),
       });
 
@@ -135,15 +139,15 @@ export default function WorshipProgramApp() {
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-800 antialiased py-10 px-4 sm:px-6">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <header className="mb-8">
-          <div className="flex items-center justify-center gap-3">
-            <BookOpen className="w-6 h-6 text-blue-600" aria-hidden="true" />
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-              worship program generator
-            </h1>
+        <header className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-blue-600 text-white shadow-md shadow-blue-500/20 mb-3">
+            <BookOpen className="w-6 h-6" />
           </div>
-          <p className="mt-1.5 text-center text-sm text-slate-600">
-            what&apos;s the plan for today?
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 lowercase">
+            worship program generator
+          </h1>
+          <p className="mt-1.5 text-sm text-slate-600 lowercase">
+            what day is the program for? pick any day, enter your theme and reference, and get a formatted bulletin.
           </p>
         </header>
 
@@ -154,17 +158,29 @@ export default function WorshipProgramApp() {
               <CheckCircle2 className="w-10 h-10" />
             </div>
 
-            <h2 className="text-2xl font-bold text-slate-900">program ready!</h2>
-            
-            {result.emailSent ? (
-              <p className="mt-2 text-sm text-slate-600">
-                email with <span className="font-semibold text-slate-800">{result.filename}</span> has been dispatched to{' '}
-                <span className="font-semibold text-emerald-700">{result.recipientEmail}</span>.
-              </p>
+            {result.deliveryMethod === 'email' ? (
+              <>
+                <h2 className="text-2xl font-bold text-slate-900">
+                  {result.emailSent ? 'program sent!' : 'program ready!'}
+                </h2>
+                {result.emailSent ? (
+                  <p className="mt-2 text-sm text-slate-600">
+                    email with <span className="font-semibold text-slate-800">{result.filename}</span> has been dispatched to{' '}
+                    <span className="font-semibold text-emerald-700">{result.recipientEmail}</span>.
+                  </p>
+                ) : (
+                  <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200 text-left text-xs text-amber-800">
+                    <span className="font-semibold">note:</span> {result.emailError || 'email could not be dispatched.'} you can still download the document directly below.
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200 text-left text-xs text-amber-800">
-                <span className="font-semibold">note:</span> {result.emailError || 'email could not be dispatched (check smtp settings).'} you can still download the document directly below.
-              </div>
+              <>
+                <h2 className="text-2xl font-bold text-slate-900">program ready!</h2>
+                <p className="mt-2 text-sm text-slate-600">
+                  your formatted word document <span className="font-semibold text-slate-800">{result.filename}</span> is ready to download.
+                </p>
+              </>
             )}
 
             <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200/70 text-left space-y-2 text-xs sm:text-sm">
@@ -182,23 +198,47 @@ export default function WorshipProgramApp() {
               </div>
             </div>
 
+            {/* Decision-Based Action Buttons */}
             <div className="mt-6 flex flex-col sm:flex-row gap-3">
-              <button
-                type="button"
-                onClick={handleDownloadDocx}
-                className="pressable flex-1 inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-emerald-600 text-white font-medium shadow-md shadow-emerald-600/20 hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
-              >
-                <Download className="w-4 h-4" />
-                download word (.docx)
-              </button>
-              <button
-                type="button"
-                onClick={handleResetForNext}
-                className="pressable inline-flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
-              >
-                <RefreshCw className="w-4 h-4" />
-                prepare another week
-              </button>
+              {result.deliveryMethod === 'device' || !result.emailSent ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleDownloadDocx}
+                    className="pressable flex-1 inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-emerald-600 text-white font-medium shadow-md shadow-emerald-600/20 hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    download word (.docx)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetForNext}
+                    className="pressable inline-flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    prepare another week
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleResetForNext}
+                    className="pressable flex-1 inline-flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-md shadow-blue-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    prepare another week
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownloadDocx}
+                    className="pressable inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    download copy
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -310,41 +350,99 @@ export default function WorshipProgramApp() {
                 </div>
               </div>
 
-              {/* Row 3: Recipient Email */}
+              {/* Row 3: Destination Radio Choice */}
               <div>
-                <label htmlFor="email" className="block text-xs font-semibold text-slate-700 lowercase tracking-wider mb-1.5">
-                                      recipient email
+                <label className="block text-xs font-semibold text-slate-700 lowercase tracking-wider mb-2">
+                  where should it be sent?
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label
+                    className={`pressable flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer ${
+                      deliveryMethod === 'device'
+                        ? 'bg-blue-50/70 border-blue-500 text-blue-950 ring-1 ring-blue-500'
+                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100/60'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="deliveryMethod"
+                      value="device"
+                      checked={deliveryMethod === 'device'}
+                      onChange={() => setDeliveryMethod('device')}
+                      className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                    />
+                    <div className="flex items-center gap-2">
+                      <Smartphone className="w-4 h-4 text-slate-600 shrink-0" />
+                      <span className="text-sm font-medium">this phone / device</span>
+                    </div>
                   </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
-                  <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={isLoading}
-                    required
-                    className="field w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
-                  />
+
+                  <label
+                    className={`pressable flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer ${
+                      deliveryMethod === 'email'
+                        ? 'bg-blue-50/70 border-blue-500 text-blue-950 ring-1 ring-blue-500'
+                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100/60'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="deliveryMethod"
+                      value="email"
+                      checked={deliveryMethod === 'email'}
+                      onChange={() => setDeliveryMethod('email')}
+                      className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                    />
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-slate-600 shrink-0" />
+                      <span className="text-sm font-medium">send to email</span>
+                    </div>
+                  </label>
                 </div>
               </div>
 
+              {/* Row 4: Conditional Recipient Email (only if 'email' selected) */}
+              {deliveryMethod === 'email' && (
+                <div className="card-in">
+                  <label htmlFor="email" className="block text-xs font-semibold text-slate-700 lowercase tracking-wider mb-1.5">
+                    recipient email
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
+                    <input
+                      id="email"
+                      type="email"
+                      placeholder="your.email@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled={isLoading}
+                      required={deliveryMethod === 'email'}
+                      className="field w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* Submit Button */}
               <div className="pt-2">
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="pressable w-full py-3.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                  className="pressable w-full py-3.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 lowercase"
                 >
                   {isLoading ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
                       generating content & building document...
                     </>
+                  ) : deliveryMethod === 'device' ? (
+                    <>
+                      <Download className="w-4 h-4" />
+                      create & download worship program
+                    </>
                   ) : (
                     <>
-                      create & send worship program
+                      <Send className="w-4 h-4" />
+                      create & send to email
                     </>
                   )}
                 </button>
@@ -364,8 +462,10 @@ export default function WorshipProgramApp() {
       {showConfirmModal && (
         <div className="overlay-in fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="dialog-in bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200">
-            <h3 className="text-lg font-bold text-slate-900 mb-2">confirm program dispatch</h3>
-            <p className="text-sm text-slate-600 mb-4">
+            <h3 className="text-lg font-bold text-slate-900 mb-2 lowercase">
+              {deliveryMethod === 'device' ? 'confirm program download' : 'confirm program dispatch'}
+            </h3>
+            <p className="text-sm text-slate-600 mb-4 lowercase">
               please verify the details below before creating the document:
             </p>
 
@@ -389,8 +489,10 @@ export default function WorshipProgramApp() {
                 </p>
               </div>
               <div>
-                <span className="text-slate-500">delivery email:</span>
-                <p className="font-semibold text-blue-600">{email}</p>
+                <span className="text-slate-500">destination:</span>
+                <p className="font-semibold text-blue-600">
+                  {deliveryMethod === 'device' ? 'on this device (direct download)' : email}
+                </p>
               </div>
             </div>
 
@@ -398,17 +500,26 @@ export default function WorshipProgramApp() {
               <button
                 type="button"
                 onClick={() => setShowConfirmModal(false)}
-                className="pressable flex-1 py-2.5 px-4 rounded-xl border border-slate-300 font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+                className="pressable flex-1 py-2.5 px-4 rounded-xl border border-slate-300 font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 lowercase"
               >
                 cancel
               </button>
               <button
                 type="button"
                 onClick={handleConfirmSend}
-                className="pressable flex-1 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-md shadow-blue-500/20 flex items-center justify-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                className="pressable flex-1 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-md shadow-blue-500/20 flex items-center justify-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 lowercase"
               >
-                <Send className="w-4 h-4" />
-                confirm & create
+                {deliveryMethod === 'device' ? (
+                  <>
+                    <Download className="w-4 h-4" />
+                    confirm & create
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    confirm & send
+                  </>
+                )}
               </button>
             </div>
           </div>

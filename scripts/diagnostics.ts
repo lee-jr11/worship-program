@@ -67,6 +67,28 @@ async function runDiagnostics() {
   const badTheme = GenerateProgramInputSchema.safeParse({ ...validGoodInput, theme: '   ' });
   assert(!badTheme.success, 'Rejects empty theme');
 
+  // Device delivery does not require an email
+  const deviceDelivery = GenerateProgramInputSchema.safeParse({
+    day: 'Sunday',
+    theme: 'Walking in Faith',
+    week: 12,
+    verseReference: 'Hebrews 11:1',
+    translation: 'NIV',
+    deliveryMethod: 'device',
+  });
+  assert(deviceDelivery.success, 'Device delivery succeeds without email');
+
+  // Email delivery requires a valid email
+  const emailDeliveryMissing = GenerateProgramInputSchema.safeParse({
+    day: 'Sunday',
+    theme: 'Walking in Faith',
+    week: 12,
+    verseReference: 'Hebrews 11:1',
+    translation: 'NIV',
+    deliveryMethod: 'email',
+  });
+  assert(!emailDeliveryMissing.success, 'Email delivery fails when email is missing');
+
   // ----------------------------------------------------------------
   // 2. OUTPUT SCHEMA CONTRACT TESTS
   // ----------------------------------------------------------------

@@ -1,14 +1,34 @@
 import { z } from 'zod';
 
 // Input payload schema from the frontend form
-export const GenerateProgramInputSchema = z.object({
-  day: z.string().trim().min(1, 'Day is required'),
-  week: z.coerce.number().int().min(1, 'Week must be at least 1').max(52, 'Week cannot exceed 52'),
-  theme: z.string().trim().min(1, 'Theme is required'),
-  verseReference: z.string().trim().min(1, 'Bible verse reference is required'),
-  translation: z.string().trim().min(1, 'Translation is required').default('NIV'),
-  email: z.string().trim().email('Please enter a valid email address').transform(e => e.toLowerCase()),
-});
+export const GenerateProgramInputSchema = z
+  .object({
+    day: z.string().trim().min(1, 'Day is required'),
+    week: z.coerce.number().int().min(1, 'Week must be at least 1').max(52, 'Week cannot exceed 52'),
+    theme: z.string().trim().min(1, 'Theme is required'),
+    verseReference: z.string().trim().min(1, 'Bible verse reference is required'),
+    translation: z.string().trim().min(1, 'Translation is required').default('NIV'),
+    deliveryMethod: z.enum(['device', 'email']).optional(),
+    email: z
+      .string()
+      .trim()
+      .email('Please enter a valid email address')
+      .transform((e) => e.toLowerCase())
+      .optional(),
+  })
+  .transform((data) => ({
+    ...data,
+    deliveryMethod: data.deliveryMethod ?? (data.email ? 'email' : 'device'),
+  }))
+  .superRefine((data, ctx) => {
+    if (data.deliveryMethod === 'email' && !data.email) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Please enter a valid recipient email address',
+        path: ['email'],
+      });
+    }
+  });
 
 export type GenerateProgramInput = z.infer<typeof GenerateProgramInputSchema>;
 

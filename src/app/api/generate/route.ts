@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { day, week, theme, verseReference, translation, email } = parseResult.data;
+    const { day, week, theme, verseReference, translation, deliveryMethod, email } = parseResult.data;
 
     // 2. AI Generation
     console.log(`[Generate API] Generating program for ${day} Week ${week}: ${theme}...`);
@@ -43,35 +43,38 @@ export async function POST(req: NextRequest) {
     console.log(`[Generate API] Building .docx document...`);
     const docxBuffer = await buildDocx(program);
 
-    // 4. Deliver via Gmail SMTP
+    // 4. Deliver via Gmail SMTP (only if deliveryMethod is 'email')
     let emailSent = false;
     let emailError: string | undefined;
 
-    const gmailUser = process.env.GMAIL_USER;
-    const gmailPass = process.env.GMAIL_APP_PASSWORD;
+    if (deliveryMethod === 'email') {
+      const gmailUser = process.env.GMAIL_USER;
+      const gmailPass = process.env.GMAIL_APP_PASSWORD;
 
-    if (gmailUser && gmailPass) {
-      console.log(`[Generate API] Dispatching email to ${email}...`);
-      const emailResult = await sendProgramEmail({
-        to: email,
-        docxBuffer,
-        weekNumber: program.week_number,
-        theme: program.theme,
-        day: program.day,
-      });
+      if (gmailUser && gmailPass && email) {
+        console.log(`[Generate API] Dispatching email to ${email}...`);
+        const emailResult = await sendProgramEmail({
+          to: email,
+          docxBuffer,
+          weekNumber: program.week_number,
+          theme: program.theme,
+          day: program.day,
+        });
 
-      emailSent = emailResult.success;
-      emailError = emailResult.error;
-    } else {
-      console.warn('[Generate API] Gmail SMTP not configured yet. Skipping email dispatch.');
-      emailError = 'gmail smtp credentials not configured yet in environment.';
+        emailSent = emailResult.success;
+        emailError = emailResult.error;
+      } else {
+        console.warn('[Generate API] Gmail SMTP not configured yet. Skipping email dispatch.');
+        emailError = 'gmail smtp credentials not configured yet in environment.';
+      }
     }
 
     const programDay = (program.day || 'Wednesday').toUpperCase();
 
-    // 5. Return response (with base64 download buffer so user can download directly if needed)
+    // 5. Return response
     return NextResponse.json({
       success: true,
+      deliveryMethod,
       emailSent,
       emailError,
       recipientEmail: email,

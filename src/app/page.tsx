@@ -10,7 +10,6 @@ import {
   RefreshCw,
   Send,
   Mail,
-  Sparkles,
 } from 'lucide-react';
 
 interface ProgramResult {
@@ -344,7 +343,6 @@ export default function WorshipProgramApp() {
                     </>
                   ) : (
                     <>
-                      <Sparkles className="w-5 h-5" />
                       create & send worship program
                     </>
                   )}

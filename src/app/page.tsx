@@ -144,7 +144,7 @@ export default function WorshipProgramApp() {
             worship program generator
           </h1>
           <p className="mt-1.5 text-sm text-slate-600">
-            generate and dispatch your perfectly formatted church study bulletin in one click.
+            what&apos;s the plan for today?
           </p>
         </header>
 

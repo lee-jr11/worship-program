@@ -237,20 +237,27 @@ async function runDiagnostics() {
   const makeFakeMailer = (plan: (attempt: number) => AttemptOutcome) => {
     const attempts: number[] = [];
     const sent: ProgramMailMessage[] = [];
-    return {
-      attempts,
-      sent,
-      mailer: {
-        async sendMail(message: ProgramMailMessage) {
-          const attempt = attempts.length + 1;
-          attempts.push(attempt);
-          sent.push(message);
-          const outcome = plan(attempt);
-          if (outcome instanceof Error) throw outcome;
-          return outcome;
-        },
+    const logs: string[] = [];
+    const mailer = {
+      async sendMail(message: ProgramMailMessage) {
+        const attempt = attempts.length + 1;
+        attempts.push(attempt);
+        sent.push(message);
+        const outcome = plan(attempt);
+        if (outcome instanceof Error) throw outcome;
+        return outcome;
       },
     };
+    // Silent logger: keeps suite output clean while letting us assert on what a user sees.
+    const deps = {
+      createMailer: () => mailer,
+      retryDelayMs: 1,
+      logger: {
+        log: (message: string) => logs.push(message),
+        error: (message: string) => logs.push(message),
+      },
+    };
+    return { attempts, sent, logs, mailer, deps };
   };
 
   const transientError = () =>
@@ -261,10 +268,7 @@ async function runDiagnostics() {
   try {
     // Happy path: no retry.
     const happy = makeFakeMailer(() => ({ messageId: '<happy@example.com>' }));
-    const happyResult = await sendProgramEmail(emailOptions, {
-      createMailer: () => happy.mailer,
-      retryDelayMs: 1,
-    });
+    const happyResult = await sendProgramEmail(emailOptions, happy.deps);
     assert(happyResult.success, 'Sends successfully on the first attempt');
     assert(happy.attempts.length === 1, 'A healthy send is never retried');
     assert(happyResult.messageId === '<happy@example.com>', 'Message ID is surfaced to the caller');
@@ -275,19 +279,17 @@ async function runDiagnostics() {
 
     // Transient failure, then success.
     const recovered = makeFakeMailer((attempt) => (attempt === 1 ? transientError() : { messageId: '<retried@example.com>' }));
-    const recoveredResult = await sendProgramEmail(emailOptions, {
-      createMailer: () => recovered.mailer,
-      retryDelayMs: 1,
-    });
+    const recoveredResult = await sendProgramEmail(emailOptions, recovered.deps);
     assert(recoveredResult.success, 'Recovers when the retry succeeds');
     assert(recovered.attempts.length === 2, 'A transient failure triggers exactly one retry');
+    assert(
+      recovered.logs.some((line) => line.includes('retrying once')),
+      'A transient failure is logged as retrying'
+    );
 
     // Transient failure twice: give up after two attempts.
     const persistent = makeFakeMailer(() => transientError());
-    const persistentResult = await sendProgramEmail(emailOptions, {
-      createMailer: () => persistent.mailer,
-      retryDelayMs: 1,
-    });
+    const persistentResult = await sendProgramEmail(emailOptions, persistent.deps);
     assert(!persistentResult.success, 'Reports failure when the retry also fails');
     assert(persistent.attempts.length === 2, 'Stops after two attempts, never more');
     assert(
@@ -297,19 +299,17 @@ async function runDiagnostics() {
 
     // Auth failure: never retried.
     const auth = makeFakeMailer(() => authError());
-    const authResult = await sendProgramEmail(emailOptions, {
-      createMailer: () => auth.mailer,
-      retryDelayMs: 1,
-    });
+    const authResult = await sendProgramEmail(emailOptions, auth.deps);
     assert(!authResult.success, 'Reports failure on an auth error');
     assert(auth.attempts.length === 1, 'Auth errors are never retried');
+    assert(
+      !auth.logs.some((line) => line.includes('retrying once')),
+      'An auth failure is not logged as retrying'
+    );
 
     // Non-transient protocol error: never retried.
     const rejected = makeFakeMailer(() => Object.assign(new Error('Message rejected by relay'), { code: 'EMESSAGE' }));
-    const rejectedResult = await sendProgramEmail(emailOptions, {
-      createMailer: () => rejected.mailer,
-      retryDelayMs: 1,
-    });
+    const rejectedResult = await sendProgramEmail(emailOptions, rejected.deps);
     assert(
       !rejectedResult.success && rejected.attempts.length === 1,
       'Non-transient errors are not retried'

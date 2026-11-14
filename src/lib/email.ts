@@ -35,11 +35,18 @@ export interface Mailer {
   sendMail(message: ProgramMailMessage): Promise<{ messageId?: string }>;
 }
 
+export interface EmailLogger {
+  log(message: string): void;
+  error(message: string, error?: unknown): void;
+}
+
 export interface SendProgramEmailDeps {
   /** Override for tests; defaults to a real nodemailer Gmail transport. */
   createMailer?: (credentials: { user: string; pass: string }) => Mailer;
   /** Backoff before the retry attempt. Defaults to 1500ms. */
   retryDelayMs?: number;
+  /** Override for tests; defaults to the console. */
+  logger?: EmailLogger;
 }
 
 // Network/DNS blips are worth one retry; auth and message errors are not.
@@ -90,6 +97,7 @@ export async function sendProgramEmail(
 
   const createMailer = deps.createMailer ?? createGmailMailer;
   const retryDelayMs = deps.retryDelayMs ?? 1500;
+  const logger = deps.logger ?? console;
 
   const mailer = createMailer({
     user: user.trim(),
@@ -121,7 +129,7 @@ export async function sendProgramEmail(
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const info = await mailer.sendMail(message);
-      console.log(`[Email Sent Successfully] MessageId: ${info.messageId} (attempt ${attempt}/${maxAttempts})`);
+      logger.log(`[Email Sent Successfully] MessageId: ${info.messageId} (attempt ${attempt}/${maxAttempts})`);
       return {
         success: true,
         messageId: info.messageId,
@@ -129,7 +137,7 @@ export async function sendProgramEmail(
     } catch (error: unknown) {
       lastErrorMessage = error instanceof Error ? error.message : lastErrorMessage;
       const willRetry = attempt < maxAttempts && isTransientSmtpError(error);
-      console.error(`[Email Delivery Error${willRetry ? ' - retrying once' : ''}]:`, error);
+      logger.error(`[Email Delivery Error${willRetry ? ' - retrying once' : ''}]:`, error);
       if (!willRetry) break;
       await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
     }

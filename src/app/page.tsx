@@ -146,9 +146,6 @@ export default function WorshipProgramApp() {
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 lowercase">
             worship program generator
           </h1>
-          <p className="mt-1.5 text-sm text-slate-600 lowercase">
-            what day is the program for? pick any day, enter your theme and reference, and get a formatted bulletin.
-          </p>
         </header>
 
         {/* Success Screen (The Green Tick) */}
@@ -314,7 +311,7 @@ export default function WorshipProgramApp() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="sm:col-span-2">
                   <label htmlFor="reference" className="block text-xs font-semibold text-slate-700 lowercase tracking-wider mb-1.5">
-                    memory verse reference
+                    memory verse
                   </label>
                   <input
                     id="reference"

@@ -60,11 +60,13 @@ export async function buildDocx(program: WorshipProgram): Promise<Buffer> {
             spacing: { after: DOCX_STYLES.spacing.sectionAfter },
             children: [
               new TextRun({
-                text: `Memory Verse: ${program.memory_verse.reference} `,
+                text: `Memory Verse: ${program.memory_verse.reference}`,
                 bold: true,
               }),
               new TextRun({
+                // Verse text starts on its own line, beneath the reference.
                 text: `${program.memory_verse.text} (${program.memory_verse.translation})`,
+                break: 1,
               }),
             ],
           }),

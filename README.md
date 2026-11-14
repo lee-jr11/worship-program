@@ -61,13 +61,16 @@ Turns a weekly theme, week number, Bible verse, and recipient email into a perfe
 ## Deploying to Vercel
 
 1. Push your repository to GitHub.
-2. In Vercel, click **Add New... → Project** and select your repository.
-3. In **Settings → Environment Variables**, add:
+2. In Vercel, click **Add New... → Project** and select your repository. Leave the framework preset, build command, and output directory at their defaults.
+3. In **Settings → Environment Variables**, add (Production):
    - One of `TOKENHARBOR_API_KEY` (plus optional `AI_BASE_URL`, `AI_MODEL`), `DEEPSEEK_API_KEY`, or `GEMINI_API_KEY`
    - `GMAIL_USER`
    - `GMAIL_APP_PASSWORD`
    - `FROM_NAME`
+   - `APP_ACCESS_CODE` — **required for any public deployment.** Without it, anyone with the URL can spend your AI credits and send mail from your Gmail address. Enter the same value in the form's access code field.
 4. Deploy!
+
+`/api/generate` is pinned to `export const runtime = 'nodejs'` with `maxDuration = 60`: nodemailer needs real TCP sockets, and Vercel blocks outbound port 25 while leaving Gmail's 465/587 open. The app has no localhost references and reads every integration detail from environment variables, so nothing needs editing per environment.
 
 ## Security Guidelines
 - **Never commit `.env.local`**. It is already in `.gitignore`.

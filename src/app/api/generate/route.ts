@@ -4,7 +4,10 @@ import { generateWorshipProgram } from '@/lib/gemini';
 import { buildDocx } from '@/lib/docx';
 import { sendProgramEmail } from '@/lib/email';
 
-// Allow up to 60 seconds for Gemini generation + Docx build + Gmail SMTP
+// Nodemailer needs TCP sockets, so this route must stay on the Node.js runtime.
+export const runtime = 'nodejs';
+
+// Allow up to 60 seconds for AI generation + Docx build + Gmail SMTP
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {

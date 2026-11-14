@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "tsx scripts/diagnostics.ts",
-    "test:live": "tsx scripts/test-harness.ts"
+    "test:live": "tsx scripts/test-harness.ts",
+    "design:audit": "npx --yes impeccable@4 detect --no-advisory src/",
+    "design:audit:page": "npx --yes impeccable@4 detect http://localhost:3000"
   },
   "dependencies": {
     "@google/genai": "^3.3.0",

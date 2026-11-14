@@ -136,14 +136,14 @@ export default function WorshipProgramApp() {
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-800 antialiased py-10 px-4 sm:px-6">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <header className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-blue-600 text-white shadow-md shadow-blue-500/20 mb-3">
-            <BookOpen className="w-6 h-6" />
+        <header className="mb-8">
+          <div className="flex items-center justify-center gap-3">
+            <BookOpen className="w-6 h-6 text-blue-600" aria-hidden="true" />
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+              worship program generator
+            </h1>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-            worship program generator
-          </h1>
-          <p className="mt-1.5 text-sm text-slate-600">
+          <p className="mt-1.5 text-center text-sm text-slate-600">
             what&apos;s the plan for today?
           </p>
         </header>
@@ -232,7 +232,7 @@ export default function WorshipProgramApp() {
                     onChange={(e) => setDay(e.target.value)}
                     disabled={isLoading}
                     required
-                    className="field w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                    className="field w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-600 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
                   />
                 </div>
 
@@ -250,7 +250,7 @@ export default function WorshipProgramApp() {
                     onChange={handleWeekChange}
                     disabled={isLoading}
                     required
-                    className="field w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-center"
+                    className="field w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-600 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-center"
                   />
                 </div>
 
@@ -266,7 +266,7 @@ export default function WorshipProgramApp() {
                     onChange={(e) => setTheme(e.target.value)}
                     disabled={isLoading}
                     required
-                    className="field w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white lowercase"
+                    className="field w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white lowercase"
                   />
                 </div>
               </div>
@@ -285,7 +285,7 @@ export default function WorshipProgramApp() {
                     onChange={(e) => setVerseReference(e.target.value)}
                     disabled={isLoading}
                     required
-                    className="field w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                    className="field w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
                   />
                 </div>
 
@@ -317,7 +317,7 @@ export default function WorshipProgramApp() {
                                       recipient email
                   </label>
                 <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                  <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
                   <input
                     id="email"
                     type="email"
@@ -325,7 +325,7 @@ export default function WorshipProgramApp() {
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={isLoading}
                     required
-                    className="field w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                    className="field w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
                   />
                 </div>
               </div>
@@ -355,7 +355,7 @@ export default function WorshipProgramApp() {
         )}
 
         {/* Footer */}
-        <footer className="mt-8 text-center text-xs text-slate-400 space-y-1">
+        <footer className="mt-8 text-center text-xs text-slate-600 space-y-1">
           <p>worship program generator • free stack edition</p>
           <p>powered by next.js, ai, and nodemailer</p>
         </footer>

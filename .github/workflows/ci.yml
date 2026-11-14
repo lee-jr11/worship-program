@@ -27,6 +27,11 @@ jobs:
       - name: Offline diagnostics
         run: npm test
 
+      # Deterministic UI anti-pattern scan. Rendered-page rules (contrast,
+      # tiny text) need a running server, so run those locally per page.
+      - name: Design audit
+        run: npm run design:audit
+
       # Catches build-time failures tsc alone does not report.
       - name: Build
         run: npm run build

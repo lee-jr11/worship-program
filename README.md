@@ -52,6 +52,12 @@ Turns a weekly theme, week number, Bible verse, and recipient email into a perfe
    npx tsx scripts/test-docx-offline.ts
    ```
 
+6. **Run the design audit** (impeccable's deterministic UI anti-pattern scan, no API key):
+   ```bash
+   npm run design:audit          # source rules
+   npm run design:audit:page     # rendered rules, needs the dev server on :3000
+   ```
+
 ## Deploying to Vercel
 
 1. Push your repository to GitHub.

@@ -3,7 +3,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Worship Program Generator',
-  description: 'Generate and dispatch weekly Wednesday worship program documents by email.',
+  description: 'Generate and dispatch weekly worship program documents by email.',
 };
 
 export default function RootLayout({

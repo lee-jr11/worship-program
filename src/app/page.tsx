@@ -29,7 +29,7 @@ interface ProgramResult {
 }
 
 export default function WorshipProgramApp() {
-  const [day, setDay] = useState<string>('Wednesday');
+  const [day, setDay] = useState<string>('');
   const [week, setWeek] = useState<string>('');
   const [theme, setTheme] = useState<string>('');
   const [verseReference, setVerseReference] = useState<string>('');

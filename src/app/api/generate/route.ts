@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: issue ? `${issue.path.join('.')}: ${issue.message}` : 'Invalid input provided.',
+          error: issue ? `${issue.path.join('.')}: ${issue.message}` : 'invalid input provided.',
         },
         { status: 400 }
       );
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Unauthorized: Invalid access code.',
+          error: 'unauthorized: invalid access code.',
         },
         { status: 401 }
       );
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
       emailError = emailResult.error;
     } else {
       console.warn('[Generate API] Gmail SMTP not configured yet. Skipping email dispatch.');
-      emailError = 'Gmail SMTP credentials not configured yet in environment.';
+      emailError = 'gmail smtp credentials not configured yet in environment.';
     }
 
     const programDay = (program.day || 'Wednesday').toUpperCase();
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: unknown) {
     console.error('[Generate API Error]:', error);
-    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred while generating the worship program.';
+    const errorMessage = error instanceof Error ? error.message : 'an unexpected error occurred while generating the worship program.';
     return NextResponse.json(
       {
         success: false,
@@ -102,5 +102,5 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
-  return NextResponse.json({ error: 'Method Not Allowed. Use POST.' }, { status: 405 });
+  return NextResponse.json({ error: 'method not allowed. use post.' }, { status: 405 });
 }

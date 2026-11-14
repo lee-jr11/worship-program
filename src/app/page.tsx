@@ -54,23 +54,23 @@ export default function WorshipProgramApp() {
     setError(null);
 
     if (!day.trim()) {
-      setError('Please provide a day of worship (e.g. Wednesday, Sunday).');
+      setError('please provide a day of worship (e.g. wednesday, sunday).');
       return;
     }
     if (!week.trim() || Number(week) < 1 || Number(week) > 52) {
-      setError('Please enter a valid week number between 1 and 52.');
+      setError('please enter a valid week number between 1 and 52.');
       return;
     }
     if (!theme.trim()) {
-      setError('Please provide a sermon / program theme.');
+      setError('please provide a sermon / program theme.');
       return;
     }
     if (!verseReference.trim()) {
-      setError('Please provide a scripture reference (e.g. Genesis 12:1-4a).');
+      setError('please provide a scripture reference (e.g. genesis 12:1-4a).');
       return;
     }
     if (!email.trim() || !email.includes('@')) {
-      setError('Please enter a valid recipient email address.');
+      setError('please enter a valid recipient email address.');
       return;
     }
 
@@ -100,13 +100,13 @@ export default function WorshipProgramApp() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to generate worship program.');
+        throw new Error(data.error || 'failed to generate worship program.');
       }
 
       setResult(data);
     } catch (err: unknown) {
       const errorMessage =
-        err instanceof Error ? err.message : 'An unexpected error occurred. Please check your credentials and try again.';
+        err instanceof Error ? err.message : 'an unexpected error occurred. please check your credentials and try again.';
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -141,44 +141,44 @@ export default function WorshipProgramApp() {
             <BookOpen className="w-6 h-6" />
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-            Worship Program Generator
+            worship program generator
           </h1>
           <p className="mt-1.5 text-sm text-slate-600">
-            Generate and dispatch your perfectly formatted church study bulletin in one click.
+            generate and dispatch your perfectly formatted church study bulletin in one click.
           </p>
         </header>
 
         {/* Success Screen (The Green Tick) */}
         {result && (
-          <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200/80 p-6 sm:p-8 text-center animate-in fade-in duration-300">
+          <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200/80 p-6 sm:p-8 text-center animate-in fade-in duration-300 lowercase">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 mb-4 ring-8 ring-emerald-50">
               <CheckCircle2 className="w-10 h-10" />
             </div>
 
-            <h2 className="text-2xl font-bold text-slate-900">Program Ready!</h2>
+            <h2 className="text-2xl font-bold text-slate-900">program ready!</h2>
             
             {result.emailSent ? (
               <p className="mt-2 text-sm text-slate-600">
-                Email with <span className="font-semibold text-slate-800">{result.filename}</span> has been dispatched to{' '}
+                email with <span className="font-semibold text-slate-800">{result.filename}</span> has been dispatched to{' '}
                 <span className="font-semibold text-emerald-700">{result.recipientEmail}</span>.
               </p>
             ) : (
               <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200 text-left text-xs text-amber-800">
-                <span className="font-semibold">Note:</span> {result.emailError || 'Email could not be dispatched (check SMTP settings).'} You can still download the document directly below.
+                <span className="font-semibold">note:</span> {result.emailError || 'email could not be dispatched (check smtp settings).'} you can still download the document directly below.
               </div>
             )}
 
             <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200/70 text-left space-y-2 text-xs sm:text-sm">
               <div className="flex justify-between border-b border-slate-200 pb-2">
-                <span className="text-slate-500">Day & Week:</span>
+                <span className="text-slate-500">day & week:</span>
                 <span className="font-medium text-slate-800">{result.program.day || 'Wednesday'} — Week {result.program.week_number}</span>
               </div>
               <div className="flex justify-between border-b border-slate-200 pb-2">
-                <span className="text-slate-500">Theme:</span>
+                <span className="text-slate-500">theme:</span>
                 <span className="font-medium text-slate-800">{result.program.theme}</span>
               </div>
               <div className="pt-1">
-                <span className="text-slate-500 block mb-1">Lesson Takeaway:</span>
+                <span className="text-slate-500 block mb-1">lesson takeaway:</span>
                 <p className="font-medium text-slate-700 italic">&ldquo;{result.program.lesson}&rdquo;</p>
               </div>
             </div>
@@ -190,7 +190,7 @@ export default function WorshipProgramApp() {
                 className="flex-1 inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-emerald-600 text-white font-medium shadow-md shadow-emerald-600/20 hover:bg-emerald-700 transition"
               >
                 <Download className="w-4 h-4" />
-                Download Word (.docx)
+                download word (.docx)
               </button>
               <button
                 type="button"
@@ -198,7 +198,7 @@ export default function WorshipProgramApp() {
                 className="inline-flex items-center justify-center gap-2 py-3 px-5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium transition"
               >
                 <RefreshCw className="w-4 h-4" />
-                Prepare Another Week
+                prepare another week
               </button>
             </div>
           </div>
@@ -211,7 +211,7 @@ export default function WorshipProgramApp() {
               <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3 text-sm text-rose-800">
                 <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-semibold">Creation Error</p>
+                  <p className="font-semibold">creation error</p>
                   <p className="mt-0.5 text-xs text-rose-700 leading-relaxed">{error}</p>
                 </div>
               </div>
@@ -221,13 +221,13 @@ export default function WorshipProgramApp() {
               {/* Row 1: Day, Week, and Theme */}
               <div className="grid grid-cols-1 sm:grid-cols-6 gap-4">
                 <div className="sm:col-span-2">
-                  <label htmlFor="day" className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Day
+                  <label htmlFor="day" className="block text-xs font-semibold text-slate-700 lowercase tracking-wider mb-1.5">
+                    day
                   </label>
                   <input
                     id="day"
                     type="text"
-                    placeholder="e.g. Wednesday"
+                    placeholder="e.g. wednesday"
                     value={day}
                     onChange={(e) => setDay(e.target.value)}
                     disabled={isLoading}
@@ -237,8 +237,8 @@ export default function WorshipProgramApp() {
                 </div>
 
                 <div className="sm:col-span-1">
-                  <label htmlFor="week" className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Week
+                  <label htmlFor="week" className="block text-xs font-semibold text-slate-700 lowercase tracking-wider mb-1.5">
+                    week
                   </label>
                   <input
                     id="week"
@@ -255,18 +255,18 @@ export default function WorshipProgramApp() {
                 </div>
 
                 <div className="sm:col-span-3">
-                  <label htmlFor="theme" className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Theme / Sermon Topic
+                  <label htmlFor="theme" className="block text-xs font-semibold text-slate-700 lowercase tracking-wider mb-1.5">
+                    theme / sermon topic
                   </label>
                   <input
                     id="theme"
                     type="text"
-                    placeholder="e.g. THE PURPOSE DRIVEN LIFE"
+                    placeholder="e.g. the purpose driven life"
                     value={theme}
                     onChange={(e) => setTheme(e.target.value)}
                     disabled={isLoading}
                     required
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition uppercase"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition lowercase"
                   />
                 </div>
               </div>
@@ -274,13 +274,13 @@ export default function WorshipProgramApp() {
               {/* Row 2: Bible Verse Reference & Translation */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="sm:col-span-2">
-                  <label htmlFor="reference" className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Memory Verse Reference
+                  <label htmlFor="reference" className="block text-xs font-semibold text-slate-700 lowercase tracking-wider mb-1.5">
+                    memory verse reference
                   </label>
                   <input
                     id="reference"
                     type="text"
-                    placeholder="e.g. Genesis 12:1-4a"
+                    placeholder="e.g. genesis 12:1-4a"
                     value={verseReference}
                     onChange={(e) => setVerseReference(e.target.value)}
                     disabled={isLoading}
@@ -290,8 +290,8 @@ export default function WorshipProgramApp() {
                 </div>
 
                 <div className="sm:col-span-1">
-                  <label htmlFor="translation" className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Translation
+                  <label htmlFor="translation" className="block text-xs font-semibold text-slate-700 lowercase tracking-wider mb-1.5">
+                    translation
                   </label>
                   <select
                     id="translation"
@@ -300,22 +300,22 @@ export default function WorshipProgramApp() {
                     disabled={isLoading}
                     className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
                   >
-                    <option value="NIV">NIV</option>
-                    <option value="ESV">ESV</option>
-                    <option value="KJV">KJV</option>
-                    <option value="NKJV">NKJV</option>
-                    <option value="NLT">NLT</option>
-                    <option value="Paraphrased">Paraphrased</option>
-                    <option value="Other">Other</option>
+                    <option value="NIV">niv</option>
+                    <option value="ESV">esv</option>
+                    <option value="KJV">kjv</option>
+                    <option value="NKJV">nkjv</option>
+                    <option value="NLT">nlt</option>
+                    <option value="Paraphrased">paraphrased</option>
+                    <option value="Other">other</option>
                   </select>
                 </div>
               </div>
 
               {/* Row 3: Recipient Email */}
               <div>
-                <label htmlFor="email" className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Recipient Email
-                </label>
+                <label htmlFor="email" className="block text-xs font-semibold text-slate-700 lowercase tracking-wider mb-1.5">
+                                      recipient email
+                  </label>
                 <div className="relative">
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
                   <input
@@ -340,12 +340,12 @@ export default function WorshipProgramApp() {
                   {isLoading ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Generating content & building document...
+                      generating content & building document...
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-5 h-5" />
-                      Create & Send Worship Program
+                      create & send worship program
                     </>
                   )}
                 </button>
@@ -356,8 +356,8 @@ export default function WorshipProgramApp() {
 
         {/* Footer */}
         <footer className="mt-8 text-center text-xs text-slate-400 space-y-1">
-          <p>Worship Program Generator • Free Stack Edition</p>
-          <p>Powered by Next.js, AI, and Nodemailer</p>
+          <p>worship program generator • free stack edition</p>
+          <p>powered by next.js, ai, and nodemailer</p>
         </footer>
       </div>
 
@@ -365,32 +365,32 @@ export default function WorshipProgramApp() {
       {showConfirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200">
-            <h3 className="text-lg font-bold text-slate-900 mb-2">Confirm Program Dispatch</h3>
+            <h3 className="text-lg font-bold text-slate-900 mb-2">confirm program dispatch</h3>
             <p className="text-sm text-slate-600 mb-4">
-              Please verify the details below before creating the document:
+              please verify the details below before creating the document:
             </p>
 
-            <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/80 space-y-2 text-xs mb-6">
+            <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/80 space-y-2 text-xs mb-6 lowercase">
               <div>
-                <span className="text-slate-500">Day & Week:</span>
+                <span className="text-slate-500">day & week:</span>
                 <p className="font-semibold text-slate-800">
                   {day} — Week {week}
                 </p>
               </div>
               <div>
-                <span className="text-slate-500">Theme:</span>
+                <span className="text-slate-500">theme:</span>
                 <p className="font-semibold text-slate-800">
-                  {theme.toUpperCase()}
+                  {theme.toLowerCase()}
                 </p>
               </div>
               <div>
-                <span className="text-slate-500">Scripture:</span>
+                <span className="text-slate-500">scripture:</span>
                 <p className="font-medium text-slate-800">
                   {verseReference} ({translation})
                 </p>
               </div>
               <div>
-                <span className="text-slate-500">Delivery Email:</span>
+                <span className="text-slate-500">delivery email:</span>
                 <p className="font-semibold text-blue-600">{email}</p>
               </div>
             </div>
@@ -401,7 +401,7 @@ export default function WorshipProgramApp() {
                 onClick={() => setShowConfirmModal(false)}
                 className="flex-1 py-2.5 px-4 rounded-xl border border-slate-300 font-medium text-slate-700 hover:bg-slate-50 transition"
               >
-                Cancel
+                cancel
               </button>
               <button
                 type="button"
@@ -409,7 +409,7 @@ export default function WorshipProgramApp() {
                 className="flex-1 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-md shadow-blue-500/20 transition flex items-center justify-center gap-1.5"
               >
                 <Send className="w-4 h-4" />
-                Confirm & Create
+                confirm & create
               </button>
             </div>
           </div>

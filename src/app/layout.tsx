@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Worship Program Generator',
-  description: 'Generate and dispatch weekly worship program documents by email.',
+  title: 'worship program generator',
+  description: 'generate and dispatch weekly worship program documents by email.',
 };
 
 export default function RootLayout({

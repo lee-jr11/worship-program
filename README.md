@@ -22,7 +22,10 @@ Turns a weekly theme, week number, Bible verse, and recipient email into a perfe
    cp .env.example .env.local
    ```
    Fill in the required values:
-   - `GEMINI_API_KEY`: Get a free key at [Google AI Studio](https://aistudio.google.com/) (no credit card required).
+   - **AI provider** (pick one, checked in this order):
+     - `TOKENHARBOR_API_KEY`: TokenHarbor key (`thk_...`). Optional overrides: `AI_BASE_URL` (default `https://tokenharbor.ai/v1`) and `AI_MODEL` (default `deepseek-v4.1-flash:free`).
+     - `DEEPSEEK_API_KEY`: Direct DeepSeek key.
+     - `GEMINI_API_KEY`: Get a free key at [Google AI Studio](https://aistudio.google.com/) (no credit card required).
    - `GMAIL_USER`: Dedicated church / app Gmail address.
    - `GMAIL_APP_PASSWORD`: 16-character App Password generated from Google Account (Security → 2-Step Verification → App Passwords).
    - `FROM_NAME`: e.g., "Wednesday Worship Program"
@@ -34,9 +37,14 @@ Turns a weekly theme, week number, Bible verse, and recipient email into a perfe
    ```
    Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-4. **Run the AI Test Harness:**
+4. **Run the offline diagnostics (no API key or network needed):**
    ```bash
-   npx tsx scripts/test-gemini.ts
+   npx tsx scripts/diagnostics.ts
+   ```
+
+5. **Run the live AI Test Harness** (calls your AI provider and writes `.docx` files to `test-output/`):
+   ```bash
+   npx tsx scripts/test-harness.ts
    ```
 
 ## Deploying to Vercel
@@ -44,7 +52,7 @@ Turns a weekly theme, week number, Bible verse, and recipient email into a perfe
 1. Push your repository to GitHub.
 2. In Vercel, click **Add New... → Project** and select your repository.
 3. In **Settings → Environment Variables**, add:
-   - `GEMINI_API_KEY`
+   - One of `TOKENHARBOR_API_KEY` (plus optional `AI_BASE_URL`, `AI_MODEL`), `DEEPSEEK_API_KEY`, or `GEMINI_API_KEY`
    - `GMAIL_USER`
    - `GMAIL_APP_PASSWORD`
    - `FROM_NAME`

@@ -123,7 +123,7 @@ export interface GenerateProgramParams {
 /**
  * Safely parses JSON from LLM response text, stripping markdown code blocks if present.
  */
-function parseJsonFromLlm(text: string): any {
+function parseJsonFromLlm(text: string): unknown {
   const cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
   const firstBrace = cleaned.indexOf('{');
   const lastBrace = cleaned.lastIndexOf('}');
@@ -131,6 +131,43 @@ function parseJsonFromLlm(text: string): any {
     return JSON.parse(cleaned.substring(firstBrace, lastBrace + 1));
   }
   return JSON.parse(cleaned);
+}
+
+/**
+ * Applies the caller-supplied fields (day, verse reference/translation/text, week
+ * number, theme) over the model output, then validates it against the contract.
+ * Throws on unusable output so the caller's retry loop can try again.
+ */
+function normalizeLlmOutput(raw: unknown, params: GenerateProgramParams, day: string): WorshipProgram {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    throw new Error('AI response was not a JSON object.');
+  }
+
+  const draft = raw as Record<string, unknown>;
+  const memoryVerse = draft.memory_verse;
+  if (typeof memoryVerse !== 'object' || memoryVerse === null || Array.isArray(memoryVerse)) {
+    throw new Error('AI response is missing memory_verse.');
+  }
+
+  const verse = memoryVerse as Record<string, unknown>;
+  verse.reference = params.verseReference.trim();
+  verse.translation = params.translation.trim();
+  if (params.verseText && params.verseText.trim()) {
+    verse.text = params.verseText.trim();
+  }
+
+  draft.day = day;
+  draft.week_number = params.week;
+  draft.theme = params.theme.toUpperCase().trim();
+
+  return WorshipProgramSchema.parse(draft);
+}
+
+interface ChatCompletionRequest {
+  model: string;
+  messages: { role: 'system' | 'user'; content: string }[];
+  temperature: number;
+  response_format?: { type: 'json_object' };
 }
 
 /**
@@ -182,7 +219,7 @@ Translation: ${params.translation}${params.verseText ? `\nVerse Text: ${params.v
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
       // Build request body
-      const requestBody: any = {
+      const requestBody: ChatCompletionRequest = {
         model,
         messages: [
           { role: 'system', content: SYSTEM_INSTRUCTION },
@@ -216,17 +253,7 @@ Translation: ${params.translation}${params.verseText ? `\nVerse Text: ${params.v
         throw new Error('AI returned an empty response.');
       }
 
-      const parsedJson = parseJsonFromLlm(content);
-      parsedJson.day = day;
-      parsedJson.memory_verse.reference = params.verseReference.trim();
-      parsedJson.memory_verse.translation = params.translation.trim();
-      if (params.verseText && params.verseText.trim()) {
-        parsedJson.memory_verse.text = params.verseText.trim();
-      }
-      parsedJson.week_number = params.week;
-      parsedJson.theme = params.theme.toUpperCase().trim();
-
-      return WorshipProgramSchema.parse(parsedJson);
+      return normalizeLlmOutput(parseJsonFromLlm(content), params, day);
     } catch (err: unknown) {
       lastError = err instanceof Error ? err : new Error(String(err));
       console.warn(`[AI Attempt ${attempt} Failed]:`, lastError.message);
@@ -268,17 +295,7 @@ Translation: ${params.translation}${params.verseText ? `\nVerse Text: ${params.v
         throw new Error('Gemini returned an empty response.');
       }
 
-      const parsedJson = parseJsonFromLlm(responseText);
-      parsedJson.day = day;
-      parsedJson.memory_verse.reference = params.verseReference.trim();
-      parsedJson.memory_verse.translation = params.translation.trim();
-      if (params.verseText && params.verseText.trim()) {
-        parsedJson.memory_verse.text = params.verseText.trim();
-      }
-      parsedJson.week_number = params.week;
-      parsedJson.theme = params.theme.toUpperCase().trim();
-
-      return WorshipProgramSchema.parse(parsedJson);
+      return normalizeLlmOutput(parseJsonFromLlm(responseText), params, day);
     } catch (err: unknown) {
       lastError = err instanceof Error ? err : new Error(String(err));
       console.warn(`[Gemini Attempt ${attempt} Failed]:`, lastError.message);
@@ -298,7 +315,10 @@ Translation: ${params.translation}${params.verseText ? `\nVerse Text: ${params.v
 export async function generateWorshipProgram(params: GenerateProgramParams): Promise<WorshipProgram> {
   // Check for TokenHarbor key explicitly
   const tokenHarborKey = process.env.TOKENHARBOR_API_KEY;
-  if (tokenHarborKey && tokenHarborKey !== 'your_tokenharbor_api_key_here') {
+  // Reject the placeholder values shipped in .env.example so an unfilled copy
+  // fails fast instead of making a doomed API call.
+  const tokenHarborPlaceholders = ['your_tokenharbor_api_key_here', 'thk_your_tokenharbor_key_here'];
+  if (tokenHarborKey && !tokenHarborPlaceholders.includes(tokenHarborKey)) {
     return generateWithOpenAICompatible(
       tokenHarborKey,
       params,

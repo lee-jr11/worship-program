@@ -37,19 +37,31 @@ const SAMPLE_WEEKS = [
 async function run() {
   console.log('=== Wednesday Worship Program Test Harness ===\n');
 
+  const tokenHarborKey = process.env.TOKENHARBOR_API_KEY;
   const deepseekKey = process.env.DEEPSEEK_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
 
+  // Placeholder values from .env.example must not count as a configured key.
+  const tokenHarborPlaceholders = ['your_tokenharbor_api_key_here', 'thk_your_tokenharbor_key_here'];
+
+  const hasTokenHarbor = tokenHarborKey && !tokenHarborPlaceholders.includes(tokenHarborKey);
   const hasDeepSeek = deepseekKey && deepseekKey !== 'your_deepseek_api_key_here';
   const hasGemini = geminiKey && geminiKey !== 'your_gemini_api_key_here';
 
-  if (!hasDeepSeek && !hasGemini) {
-    console.error('❌ Error: Neither DEEPSEEK_API_KEY nor GEMINI_API_KEY is set in .env.local');
-    console.log('Please add your DeepSeek or Gemini API key to worship-program/.env.local first.');
+  if (!hasTokenHarbor && !hasDeepSeek && !hasGemini) {
+    console.error(
+      '❌ Error: No usable AI key found in .env.local (checked TOKENHARBOR_API_KEY, DEEPSEEK_API_KEY, GEMINI_API_KEY)'
+    );
+    console.log('Please add your TokenHarbor, DeepSeek or Gemini API key to worship-program/.env.local first.');
     process.exit(1);
   }
 
-  if (hasDeepSeek) {
+  // Mirror the precedence in src/lib/gemini.ts: TokenHarbor → DeepSeek → Gemini.
+  if (hasTokenHarbor) {
+    const baseUrl = process.env.AI_BASE_URL || 'https://tokenharbor.ai/v1';
+    const model = process.env.AI_MODEL || 'deepseek-v4.1-flash:free';
+    console.log(`⚡ Using TokenHarbor as AI provider (model: ${model}, endpoint: ${baseUrl}).`);
+  } else if (hasDeepSeek) {
     console.log('⚡ Using DeepSeek (deepseek-chat) as AI provider.');
   } else {
     console.log('⚡ Using Google Gemini (gemini-2.0-flash) as AI provider.');

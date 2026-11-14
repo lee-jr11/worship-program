@@ -142,7 +142,11 @@ async function runDiagnostics() {
   assert(fs.existsSync(envExamplePath), '.env.example file exists for documentation');
 
   const envLocalPath = path.resolve(process.cwd(), '.env.local');
-  assert(fs.existsSync(envLocalPath), '.env.local exists locally for configuration');
+  if (process.env.CI) {
+    console.log('  - .env.local presence check skipped (CI runs have no local env file)');
+  } else {
+    assert(fs.existsSync(envLocalPath), '.env.local exists locally for configuration');
+  }
 
   // ----------------------------------------------------------------
   // 5. LLM OUTPUT NORMALIZATION TESTS

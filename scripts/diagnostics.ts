@@ -1,5 +1,6 @@
 import { GenerateProgramInputSchema, WorshipProgramSchema, WorshipProgram } from '../src/lib/schema';
 import { buildDocx } from '../src/lib/docx';
+import { normalizeLlmOutput } from '../src/lib/gemini';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -25,7 +26,7 @@ async function runDiagnostics() {
   // ----------------------------------------------------------------
   // 1. INPUT SCHEMA VALIDATION TESTS
   // ----------------------------------------------------------------
-  console.log('[1/4] Testing Input Validation (GenerateProgramInputSchema)...');
+  console.log('[1/5] Testing Input Validation (GenerateProgramInputSchema)...');
 
   const validGoodInput = {
     day: 'Sunday',
@@ -61,7 +62,7 @@ async function runDiagnostics() {
   // ----------------------------------------------------------------
   // 2. OUTPUT SCHEMA CONTRACT TESTS
   // ----------------------------------------------------------------
-  console.log('\n[2/4] Testing LLM Output Contract (WorshipProgramSchema)...');
+  console.log('\n[2/5] Testing LLM Output Contract (WorshipProgramSchema)...');
 
   const validProgramData: WorshipProgram = {
     day: 'Wednesday',
@@ -112,7 +113,7 @@ async function runDiagnostics() {
   // ----------------------------------------------------------------
   // 3. DOCX BUILDER INTEGRITY TESTS
   // ----------------------------------------------------------------
-  console.log('\n[3/4] Testing Docx Document Generation...');
+  console.log('\n[3/5] Testing Docx Document Generation...');
 
   const startTime = Date.now();
   const buffer = await buildDocx(validProgramData);
@@ -128,7 +129,7 @@ async function runDiagnostics() {
   // ----------------------------------------------------------------
   // 4. ENVIRONMENT & SECURITY AUDIT
   // ----------------------------------------------------------------
-  console.log('\n[4/4] Security & Gitignore Audit...');
+  console.log('\n[4/5] Security & Gitignore Audit...');
 
   const gitignorePath = path.resolve(process.cwd(), '.gitignore');
   const gitignoreContent = fs.readFileSync(gitignorePath, 'utf-8');
@@ -141,6 +142,76 @@ async function runDiagnostics() {
 
   const envLocalPath = path.resolve(process.cwd(), '.env.local');
   assert(fs.existsSync(envLocalPath), '.env.local exists locally for configuration');
+
+  // ----------------------------------------------------------------
+  // 5. LLM OUTPUT NORMALIZATION TESTS
+  // ----------------------------------------------------------------
+  console.log('\n[5/5] Testing LLM output normalization (normalizeLlmOutput)...');
+
+  const llmParams = {
+    day: 'Sunday',
+    week: 9,
+    theme: '  obedience over comfort  ',
+    verseReference: '  1 Samuel 15:22  ',
+    translation: ' ESV ',
+  };
+
+  const makeRawProgram = (overrides: Record<string, unknown> = {}) => ({
+    day: 'Monday',
+    week_number: 1,
+    theme: 'model supplied theme',
+    memory_verse: { reference: 'Model 1:1', text: 'Model supplied verse text', translation: 'KJV' },
+    focus: 'A focus paragraph long enough to satisfy the contract validation.',
+    lesson: 'Obey quickly.',
+    application_intro: 'Framing sentence for the discussion questions.',
+    application: [
+      { title: 'Leave the familiar', body: 'Name the comfort you are clinging to.' },
+      { title: 'Trust the unknown', body: 'Take the first step without the blueprint.' },
+      { title: 'Become a blessing', body: 'Spend your resources on someone else.' },
+      { title: 'Act on the call', body: 'Commit to one concrete action today.' },
+    ],
+    prayer: ['Pray for courage to obey.', 'Pray that we stop delaying.'],
+    ...overrides,
+  });
+
+  const throws = (fn: () => unknown): boolean => {
+    try {
+      fn();
+      return false;
+    } catch {
+      return true;
+    }
+  };
+
+  const normalized = normalizeLlmOutput(makeRawProgram(), llmParams, 'Sunday');
+  assert(normalized.day === 'Sunday', 'Caller-supplied day overrides the model value');
+  assert(normalized.week_number === 9, 'Caller-supplied week overrides the model value');
+  assert(normalized.theme === 'OBEDIENCE OVER COMFORT', 'Theme is trimmed and uppercased');
+  assert(normalized.memory_verse.reference === '1 Samuel 15:22', 'Verse reference is trimmed and forced');
+  assert(normalized.memory_verse.translation === 'ESV', 'Translation is trimmed and forced');
+  assert(
+    normalized.memory_verse.text === 'Model supplied verse text',
+    'Model verse text is kept when no verse text is supplied'
+  );
+
+  const withVerseText = normalizeLlmOutput(
+    makeRawProgram(),
+    { ...llmParams, verseText: '  Supplied verse text  ' },
+    'Sunday'
+  );
+  assert(withVerseText.memory_verse.text === 'Supplied verse text', 'Supplied verse text overrides the model text');
+
+  assert(throws(() => normalizeLlmOutput('not an object', llmParams, 'Sunday')), 'Throws on non-object output (so the caller retries)');
+  assert(throws(() => normalizeLlmOutput(null, llmParams, 'Sunday')), 'Throws on null output (so the caller retries)');
+  assert(throws(() => normalizeLlmOutput([], llmParams, 'Sunday')), 'Throws on array output (so the caller retries)');
+  assert(
+    throws(() => normalizeLlmOutput({ day: 'Monday' }, llmParams, 'Sunday')),
+    'Throws when memory_verse is missing (so the caller retries)'
+  );
+  assert(
+    throws(() => normalizeLlmOutput(makeRawProgram({ application: [] }), llmParams, 'Sunday')),
+    'Throws when the output violates the contract (so the caller retries)'
+  );
 
   console.log('\n====================================================');
   console.log(` RESULTS: ${passedTests} / ${totalTests} tests passed`);

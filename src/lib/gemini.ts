@@ -138,7 +138,7 @@ function parseJsonFromLlm(text: string): unknown {
  * number, theme) over the model output, then validates it against the contract.
  * Throws on unusable output so the caller's retry loop can try again.
  */
-function normalizeLlmOutput(raw: unknown, params: GenerateProgramParams, day: string): WorshipProgram {
+export function normalizeLlmOutput(raw: unknown, params: GenerateProgramParams, day: string): WorshipProgram {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     throw new Error('AI response was not a JSON object.');
   }

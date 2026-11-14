@@ -6,7 +6,9 @@
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "tsx scripts/diagnostics.ts",
+    "test:live": "tsx scripts/test-harness.ts"
   },
   "dependencies": {
     "@google/genai": "^3.3.0",

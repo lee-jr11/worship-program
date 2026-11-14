@@ -37,14 +37,19 @@ Turns a weekly theme, week number, Bible verse, and recipient email into a perfe
    ```
    Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-4. **Run the offline diagnostics (no API key or network needed):**
+4. **Run the offline diagnostics** (no API key or network needed):
    ```bash
-   npx tsx scripts/diagnostics.ts
+   npm test
    ```
 
-5. **Run the live AI Test Harness** (calls your AI provider and writes `.docx` files to `test-output/`):
+5. **Run the live AI Test Harness** (calls your AI provider and writes `.docx` files to `test-output/`, which is gitignored):
    ```bash
-   npx tsx scripts/test-harness.ts
+   npm run test:live
+   ```
+
+   To regenerate the Week 4 reference document from fixed data without calling the AI:
+   ```bash
+   npx tsx scripts/test-docx-offline.ts
    ```
 
 ## Deploying to Vercel

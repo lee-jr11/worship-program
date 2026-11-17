@@ -279,10 +279,10 @@ Bible Verse Reference: ${params.verseReference}
 Translation: ${params.translation}${params.verseText ? `\nVerse Text: ${params.verseText}` : ''}`;
 
   let lastError: Error | null = null;
-  // Prioritize the fast Flash models
+  // Prioritize gemini-1.5-flash for fastest, most reliable 1-3s responses
   const candidateModels = configuredModel
     ? [configuredModel]
-    : ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-3.8-flash'];
+    : ['gemini-1.5-flash', 'gemini-2.5-flash'];
 
   for (let attempt = 1; attempt <= candidateModels.length; attempt++) {
     const currentModel = candidateModels[attempt - 1];

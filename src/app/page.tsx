@@ -100,13 +100,23 @@ export default function WorshipProgramApp() {
         }),
       });
 
-      const data = await response.json();
+      let data: { success?: boolean; error?: string; [key: string]: unknown };
+      const responseText = await response.text();
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        throw new Error(
+          response.status === 504 || responseText.includes('FUNCTION_INVOCATION_TIMEOUT')
+            ? 'Request timed out on the server. Please try again.'
+            : responseText || `Server error (${response.status})`
+        );
+      }
 
       if (!response.ok || !data.success) {
         throw new Error(data.error || 'failed to generate worship program.');
       }
 
-      setResult(data);
+      setResult(data as unknown as ProgramResult);
     } catch (err: unknown) {
       const errorMessage =
         err instanceof Error ? err.message : 'an unexpected error occurred. please check your credentials and try again.';

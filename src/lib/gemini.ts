@@ -269,7 +269,7 @@ Translation: ${params.translation}${params.verseText ? `\nVerse Text: ${params.v
 async function generateWithGemini(apiKey: string, params: GenerateProgramParams): Promise<WorshipProgram> {
   const ai = new GoogleGenAI({ apiKey });
   const day = params.day || 'Wednesday';
-  const modelName = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+  const configuredModel = process.env.GEMINI_MODEL;
   const userPrompt = `Generate the ${day} Worship Program for:
 Day: ${day}
 Week Number: ${params.week}
@@ -278,16 +278,23 @@ Bible Verse Reference: ${params.verseReference}
 Translation: ${params.translation}${params.verseText ? `\nVerse Text: ${params.verseText}` : ''}`;
 
   let lastError: Error | null = null;
-  for (let attempt = 1; attempt <= 2; attempt++) {
+  const candidateModels = configuredModel ? [configuredModel] : ['gemini-3.8-flash', 'gemini-2.5-flash'];
+
+  for (let attempt = 1; attempt <= candidateModels.length; attempt++) {
+    const currentModel = candidateModels[attempt - 1];
     try {
+      console.log(`[Gemini Request] Calling ${currentModel} (attempt ${attempt})...`);
       const response = await ai.models.generateContent({
-        model: modelName,
+        model: currentModel,
         contents: userPrompt,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION,
           responseMimeType: 'application/json',
           responseSchema: GEMINI_RESPONSE_SCHEMA,
           temperature: 0.7,
+          thinkingConfig: {
+            thinkingBudget: 0,
+          },
         },
       });
 
@@ -299,7 +306,7 @@ Translation: ${params.translation}${params.verseText ? `\nVerse Text: ${params.v
       return normalizeLlmOutput(parseJsonFromLlm(responseText), params, day);
     } catch (err: unknown) {
       lastError = err instanceof Error ? err : new Error(String(err));
-      console.warn(`[Gemini Attempt ${attempt} Failed]:`, lastError.message);
+      console.warn(`[Gemini Attempt ${attempt} (${currentModel}) Failed]:`, lastError.message);
     }
   }
 

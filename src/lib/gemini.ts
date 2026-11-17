@@ -269,6 +269,7 @@ Translation: ${params.translation}${params.verseText ? `\nVerse Text: ${params.v
 async function generateWithGemini(apiKey: string, params: GenerateProgramParams): Promise<WorshipProgram> {
   const ai = new GoogleGenAI({ apiKey });
   const day = params.day || 'Wednesday';
+  const modelName = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
   const userPrompt = `Generate the ${day} Worship Program for:
 Day: ${day}
 Week Number: ${params.week}
@@ -280,7 +281,7 @@ Translation: ${params.translation}${params.verseText ? `\nVerse Text: ${params.v
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash',
+        model: modelName,
         contents: userPrompt,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION,

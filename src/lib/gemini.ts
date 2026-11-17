@@ -267,7 +267,8 @@ Translation: ${params.translation}${params.verseText ? `\nVerse Text: ${params.v
  * Gemini API Caller
  */
 async function generateWithGemini(apiKey: string, params: GenerateProgramParams): Promise<WorshipProgram> {
-  const ai = new GoogleGenAI({ apiKey });
+  // Use v1beta so developer/system instructions and modern schema validation are supported
+  const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1beta' });
   const day = params.day || 'Wednesday';
   const configuredModel = process.env.GEMINI_MODEL;
   const userPrompt = `Generate the ${day} Worship Program for:
@@ -278,24 +279,30 @@ Bible Verse Reference: ${params.verseReference}
 Translation: ${params.translation}${params.verseText ? `\nVerse Text: ${params.verseText}` : ''}`;
 
   let lastError: Error | null = null;
-  const candidateModels = configuredModel ? [configuredModel] : ['gemini-3.8-flash', 'gemini-2.5-flash'];
+  // Prioritize the fast Flash models
+  const candidateModels = configuredModel
+    ? [configuredModel]
+    : ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-3.8-flash'];
 
   for (let attempt = 1; attempt <= candidateModels.length; attempt++) {
     const currentModel = candidateModels[attempt - 1];
     try {
       console.log(`[Gemini Request] Calling ${currentModel} (attempt ${attempt})...`);
+      const config: Record<string, unknown> = {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        responseMimeType: 'application/json',
+        responseSchema: GEMINI_RESPONSE_SCHEMA,
+        temperature: 0.7,
+      };
+
+      if (currentModel.includes('3.8')) {
+        config.thinkingConfig = { thinkingBudget: 0 };
+      }
+
       const response = await ai.models.generateContent({
         model: currentModel,
         contents: userPrompt,
-        config: {
-          systemInstruction: SYSTEM_INSTRUCTION,
-          responseMimeType: 'application/json',
-          responseSchema: GEMINI_RESPONSE_SCHEMA,
-          temperature: 0.7,
-          thinkingConfig: {
-            thinkingBudget: 0,
-          },
-        },
+        config: config as any,
       });
 
       const responseText = response.text;

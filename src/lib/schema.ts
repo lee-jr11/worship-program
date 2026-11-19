@@ -8,11 +8,6 @@ export const GenerateProgramInputSchema = z
     theme: z.string().trim().min(1, 'Theme is required').max(200, 'Theme is too long'),
     verseReference: z.string().trim().min(1, 'Bible verse reference is required').max(120, 'Verse reference is too long'),
     translation: z.string().trim().min(1, 'Translation is required').default('NIV'),
-    /**
-     * Optional pasted scripture text. When supplied it is used verbatim,
-     * so the bulletin never relies on the model recalling the verse.
-     */
-    verseText: z.string().trim().max(4000, 'Verse text is too long').optional(),
     deliveryMethod: z.enum(['device', 'email']).optional(),
     email: z
       .string()

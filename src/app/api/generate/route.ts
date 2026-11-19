@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { day, week, theme, verseReference, translation, verseText, deliveryMethod, email } = parseResult.data;
+    const { day, week, theme, verseReference, translation, deliveryMethod, email } = parseResult.data;
 
     // 2. AI Generation
     console.log(`[Generate API] Generating program for ${day} Week ${week}: ${theme}...`);
@@ -47,7 +47,6 @@ export async function POST(req: NextRequest) {
       theme,
       verseReference,
       translation,
-      verseText,
     });
 
     // 3. Build .docx

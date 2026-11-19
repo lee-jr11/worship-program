@@ -30,7 +30,6 @@ Turns a weekly theme, week number, Bible verse, and recipient email into a perfe
    - `GMAIL_APP_PASSWORD`: 16-character App Password generated from Google Account (Security → 2-Step Verification → App Passwords).
    - `FROM_NAME`: e.g., "Wednesday Worship Program"
    - `SMTP_ALLOW_INSECURE_TLS` (optional, dev-only): set to `true` on a local machine behind a TLS-terminating proxy. Ignored when `NODE_ENV=production`.
-   - Provide **verse text** in the form whenever possible: pasting the exact wording keeps the printed scripture faithful to your translation instead of relying on the model to recall it.
 
 3. **Run the development server:**
    ```bash

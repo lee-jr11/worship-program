@@ -140,7 +140,6 @@ export interface GenerateProgramParams {
   theme: string;
   verseReference: string;
   translation: string;
-  verseText?: string;
 }
 
 /**
@@ -157,7 +156,7 @@ function parseJsonFromLlm(text: string): unknown {
 }
 
 /**
- * Applies the caller-supplied fields (day, verse reference/translation/text, week
+ * Applies the caller-supplied fields (day, verse reference/translation, week
  * number, theme) over the model output, then validates it against the contract.
  * Throws on unusable output so the caller's retry loop can try again.
  */
@@ -175,9 +174,6 @@ export function normalizeLlmOutput(raw: unknown, params: GenerateProgramParams, 
   const verse = memoryVerse as Record<string, unknown>;
   verse.reference = params.verseReference.trim();
   verse.translation = params.translation.trim();
-  if (params.verseText && params.verseText.trim()) {
-    verse.text = params.verseText.trim();
-  }
 
   draft.day = day;
   draft.week_number = params.week;
@@ -208,7 +204,7 @@ Day: ${day}
 Week Number: ${params.week}
 Theme: ${params.theme}
 Bible Verse Reference: ${params.verseReference}
-Translation: ${params.translation}${params.verseText ? `\nVerse Text: ${params.verseText}` : ''}`;
+Translation: ${params.translation}`;
 
   // Determine endpoint URL
   let endpoint = customBaseUrl || process.env.AI_BASE_URL || process.env.DEEPSEEK_BASE_URL;
@@ -300,7 +296,7 @@ Day: ${day}
 Week Number: ${params.week}
 Theme: ${params.theme}
 Bible Verse Reference: ${params.verseReference}
-Translation: ${params.translation}${params.verseText ? `\nVerse Text: ${params.verseText}` : ''}`;
+Translation: ${params.translation}`;
 
   let lastError: Error | null = null;
   const candidateModels = configuredModel ? [configuredModel] : DEFAULT_GEMINI_MODELS;

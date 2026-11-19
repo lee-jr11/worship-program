@@ -13,24 +13,18 @@ const SAMPLE_WEEKS = [
     theme: 'THE PURPOSE DRIVEN LIFE',
     verseReference: 'Genesis 12:1-4a',
     translation: 'NIV',
-    verseText:
-      'The Lord had said to Abram, “Go from your country, your people and your father’s household to the land I will show you. I will make you into a great nation, and I will bless you; I will make your name great, and you will be a blessing. I will bless those who bless you, and whoever curses you I will curse; and all peoples on earth will be blessed through you.” So Abram went, as the Lord had told him...',
   },
   {
     week: 6,
     theme: 'PATIENCE, FAITHFULNESS AND SELF-CONTROL',
     verseReference: '2 Peter 1:5-7',
     translation: 'Paraphrased',
-    verseText:
-      'Make every effort to add to your faith goodness; and to goodness, knowledge; and to knowledge, self-control; and to self-control, perseverance; and to perseverance, godliness; and to godliness, mutual affection; and to mutual affection, love.',
   },
   {
     week: 7,
     theme: 'OUR RESPONSIBILITY, OUR CHARACTER',
     verseReference: 'Galatians 5:25-26',
     translation: 'NIV',
-    verseText:
-      'Since we live by the Spirit, let us keep in step with the Spirit. Let us not become conceited, provoking and envying each other.',
   },
 ];
 

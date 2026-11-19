@@ -90,11 +90,7 @@ async function runDiagnostics() {
   });
   assert(!emailDeliveryMissing.success, 'Email delivery fails when email is missing');
 
-  // Optional pasted verse text is accepted and trimmed; oversized input is rejected.
-  const parsedWithVerseText = GenerateProgramInputSchema.safeParse({ ...validGoodInput, verseText: '  For God so loved the world  ' });
-  assert(parsedWithVerseText.success && parsedWithVerseText.data.verseText === 'For God so loved the world', 'Verse text is accepted and trimmed');
-  const oversizedVerseText = GenerateProgramInputSchema.safeParse({ ...validGoodInput, verseText: 'x'.repeat(4001) });
-  assert(!oversizedVerseText.success, 'Rejects verse text beyond the length cap');
+  // Oversized text inputs are rejected.
   const oversizedTheme = GenerateProgramInputSchema.safeParse({ ...validGoodInput, theme: 'x'.repeat(201) });
   assert(!oversizedTheme.success, 'Rejects an oversized theme');
 
@@ -239,15 +235,8 @@ async function runDiagnostics() {
   assert(normalized.memory_verse.translation === 'ESV', 'Translation is trimmed and forced');
   assert(
     normalized.memory_verse.text === 'Model supplied verse text',
-    'Model verse text is kept when no verse text is supplied'
+    'Model-supplied verse text is preserved'
   );
-
-  const withVerseText = normalizeLlmOutput(
-    makeRawProgram(),
-    { ...llmParams, verseText: '  Supplied verse text  ' },
-    'Sunday'
-  );
-  assert(withVerseText.memory_verse.text === 'Supplied verse text', 'Supplied verse text overrides the model text');
 
   assert(throws(() => normalizeLlmOutput('not an object', llmParams, 'Sunday')), 'Throws on non-object output (so the caller retries)');
   assert(throws(() => normalizeLlmOutput(null, llmParams, 'Sunday')), 'Throws on null output (so the caller retries)');

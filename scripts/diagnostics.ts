@@ -1,8 +1,9 @@
 import { GenerateProgramInputSchema, WorshipProgramSchema, WorshipProgram } from '../src/lib/schema';
 import { buildDocx } from '../src/lib/docx';
-import { normalizeLlmOutput } from '../src/lib/gemini';
+import { normalizeLlmOutput, generateWorshipProgram } from '../src/lib/gemini';
 import { sendProgramEmail, ProgramMailMessage } from '../src/lib/email';
 import { createRateLimiter } from '../src/lib/ratelimit';
+import { fetchVerseText, normalizeReference, resolveTranslationId } from '../src/lib/bible';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -28,7 +29,7 @@ async function runDiagnostics() {
   // ----------------------------------------------------------------
   // 1. INPUT SCHEMA VALIDATION TESTS
   // ----------------------------------------------------------------
-  console.log('[1/7] Testing Input Validation (GenerateProgramInputSchema)...');
+  console.log('[1/8] Testing Input Validation (GenerateProgramInputSchema)...');
 
   const validGoodInput = {
     day: 'Sunday',
@@ -97,7 +98,7 @@ async function runDiagnostics() {
   // ----------------------------------------------------------------
   // 2. OUTPUT SCHEMA CONTRACT TESTS
   // ----------------------------------------------------------------
-  console.log('\n[2/7] Testing LLM Output Contract (WorshipProgramSchema)...');
+  console.log('\n[2/8] Testing LLM Output Contract (WorshipProgramSchema)...');
 
   const validProgramData: WorshipProgram = {
     day: 'Wednesday',
@@ -148,7 +149,7 @@ async function runDiagnostics() {
   // ----------------------------------------------------------------
   // 3. DOCX BUILDER INTEGRITY TESTS
   // ----------------------------------------------------------------
-  console.log('\n[3/7] Testing Docx Document Generation...');
+  console.log('\n[3/8] Testing Docx Document Generation...');
 
   const startTime = Date.now();
   const buffer = await buildDocx(validProgramData);
@@ -164,7 +165,7 @@ async function runDiagnostics() {
   // ----------------------------------------------------------------
   // 4. ENVIRONMENT & SECURITY AUDIT
   // ----------------------------------------------------------------
-  console.log('\n[4/7] Security & Gitignore Audit...');
+  console.log('\n[4/8] Security & Gitignore Audit...');
 
   const gitignorePath = path.resolve(process.cwd(), '.gitignore');
   const gitignoreContent = fs.readFileSync(gitignorePath, 'utf-8');
@@ -190,7 +191,7 @@ async function runDiagnostics() {
   // ----------------------------------------------------------------
   // 5. LLM OUTPUT NORMALIZATION TESTS
   // ----------------------------------------------------------------
-  console.log('\n[5/7] Testing LLM output normalization (normalizeLlmOutput)...');
+  console.log('\n[5/8] Testing LLM output normalization (normalizeLlmOutput)...');
 
   const llmParams = {
     day: 'Sunday',
@@ -253,7 +254,7 @@ async function runDiagnostics() {
   // ----------------------------------------------------------------
   // 6. RATE LIMITER TESTS
   // ----------------------------------------------------------------
-  console.log('\n[6/7] Testing rate limiter (createRateLimiter)...');
+  console.log('\n[6/8] Testing rate limiter (createRateLimiter)...');
 
   let clock = 1_000_000;
   const limiter = createRateLimiter({ limit: 3, windowMs: 60_000, now: () => clock });
@@ -269,9 +270,131 @@ async function runDiagnostics() {
   assert(limiter.check('a').allowed, 'Requests are allowed again after the window resets');
 
   // ----------------------------------------------------------------
-  // 7. EMAIL DELIVERY RETRY TESTS
+  // 7. BIBLE API (server-side scripture lookup)
   // ----------------------------------------------------------------
-  console.log('\n[7/7] Testing email retry behaviour (sendProgramEmail)...');
+  console.log('\n[7/8] Testing Bible API lookup (fetchVerseText)...');
+
+  // Reference normalization: sub-verse letter suffixes are dropped.
+  assert(normalizeReference('Genesis 12:1-4a') === 'Genesis 12:1-4', 'Drops a sub-verse letter suffix');
+  assert(normalizeReference('  1 Samuel 15:22b ') === '1 Samuel 15:22', 'Trims and strips a trailing letter');
+  assert(normalizeReference('John  3:16') === 'John 3:16', 'Collapses repeated whitespace');
+
+  // Translation mapping: only public-domain ids resolve.
+  assert(resolveTranslationId('KJV') === 'kjv', 'KJV maps to a fetchable id');
+  assert(resolveTranslationId('kjv') === 'kjv', 'Lowercase id is accepted');
+  assert(resolveTranslationId('NIV') === null, 'NIV does not resolve (not public domain)');
+  assert(resolveTranslationId('Paraphrased') === null, 'A paraphrase does not resolve');
+
+  // fetchVerseText returns null without a network call for unfetchable input.
+  assert(
+    (await fetchVerseText({ reference: 'John 3:16', translation: 'NIV', fetchImpl: (() => { throw new Error('should not fetch'); }) as unknown as typeof fetch })) === null,
+    'Unfetchable translation short-circuits without a request'
+  );
+
+  // Injected fetch: success returns flat text; failures degrade to null.
+  const jsonResponse = (body: unknown, contentType = 'application/json') =>
+    new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': contentType } });
+
+  const okFetch = (async () => jsonResponse({ reference: 'John 3:16', text: '  For God so loved the world.  ' })) as unknown as typeof fetch;
+  assert(
+    (await fetchVerseText({ reference: 'John 3:16', translation: 'KJV', fetchImpl: okFetch })) === 'For God so loved the world.',
+    'Returns trimmed verse text on success'
+  );
+
+  const errorBodyFetch = (async () => jsonResponse({ error: 'not found' })) as unknown as typeof fetch;
+  assert(
+    (await fetchVerseText({ reference: 'Nope 1:1', translation: 'KJV', fetchImpl: errorBodyFetch })) === null,
+    'Returns null when the API reports an error body'
+  );
+
+  const htmlFetch = (async () => new Response('<html>404</html>', { status: 404, headers: { 'content-type': 'text/html' } })) as unknown as typeof fetch;
+  assert(
+    (await fetchVerseText({ reference: 'John 3:16', translation: 'KJV', fetchImpl: htmlFetch })) === null,
+    'Returns null on a non-JSON (HTML 404) response'
+  );
+
+  const throwFetch = (async () => { throw new Error('network down'); }) as unknown as typeof fetch;
+  assert(
+    (await fetchVerseText({ reference: 'John 3:16', translation: 'KJV', fetchImpl: throwFetch })) === null,
+    'Returns null when the request throws (never blocks generation)'
+  );
+
+  // Integration: generateWorshipProgram forces fetched text into the output.
+  const rawForIntegration = {
+    day: 'Sunday',
+    week_number: 1,
+    theme: 'x',
+    memory_verse: { reference: 'x', text: 'MODEL-TEXT-SHOULD-BE-OVERWRITTEN', translation: 'x' },
+    focus: 'A focus paragraph long enough to satisfy the contract validation requirement.',
+    lesson: 'Obey quickly.',
+    application_intro: 'Framing sentence for the discussion questions.',
+    application: [
+      { title: 'Leave familiar', body: 'Name the comfort you are clinging to.' },
+      { title: 'Trust unknown', body: 'Take the first step without the blueprint.' },
+      { title: 'Become blessing', body: 'Spend your resources on someone else.' },
+      { title: 'Act on call', body: 'Commit to one concrete action today.' },
+    ],
+    prayer: ['Pray for courage to obey.', 'Pray that we stop delaying.'],
+  };
+  const integrationFetch = (async () => jsonResponse({ text: 'FETCHED-VERSE-TEXT' })) as unknown as typeof fetch;
+  // A fresh Response per call: a body can only be read once, and the provider
+  // loop may retry.
+  const integrationAiFetch = (async () =>
+    new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(rawForIntegration) } }] }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })) as unknown as typeof fetch;
+
+  const savedFetch = globalThis.fetch;
+  const savedDeepseek = process.env.DEEPSEEK_API_KEY;
+  const savedTokenHarbor = process.env.TOKENHARBOR_API_KEY;
+  const savedGemini = process.env.GEMINI_API_KEY;
+  try {
+    delete process.env.TOKENHARBOR_API_KEY;
+    delete process.env.GEMINI_API_KEY;
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    globalThis.fetch = integrationAiFetch;
+    const integrated = await generateWorshipProgram(
+      { day: 'Sunday', week: 1, theme: 'Obedience', verseReference: 'John 3:16', translation: 'KJV' },
+      { fetchVerse: (ref, tr) => fetchVerseText({ reference: ref, translation: tr, fetchImpl: integrationFetch }) }
+    );
+    assert(
+      integrated.memory_verse.text === 'FETCHED-VERSE-TEXT',
+      'Fetched scripture overrides the model text end-to-end'
+    );
+    assert(integrated.memory_verse.reference === 'John 3:16', 'Reference is still forced from the request');
+  } finally {
+    globalThis.fetch = savedFetch;
+    if (savedDeepseek === undefined) delete process.env.DEEPSEEK_API_KEY; else process.env.DEEPSEEK_API_KEY = savedDeepseek;
+    if (savedTokenHarbor === undefined) delete process.env.TOKENHARBOR_API_KEY; else process.env.TOKENHARBOR_API_KEY = savedTokenHarbor;
+    if (savedGemini === undefined) delete process.env.GEMINI_API_KEY; else process.env.GEMINI_API_KEY = savedGemini;
+  }
+
+  // Fallback: when the lookup misses, the model's text is kept.
+  try {
+    delete process.env.TOKENHARBOR_API_KEY;
+    delete process.env.GEMINI_API_KEY;
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    globalThis.fetch = integrationAiFetch;
+    const fallback = await generateWorshipProgram(
+      { day: 'Sunday', week: 1, theme: 'Obedience', verseReference: 'John 3:16', translation: 'NIV' },
+      { fetchVerse: async () => null }
+    );
+    assert(
+      fallback.memory_verse.text === 'MODEL-TEXT-SHOULD-BE-OVERWRITTEN',
+      'Falls back to the model text when no verse can be fetched'
+    );
+  } finally {
+    globalThis.fetch = savedFetch;
+    if (savedDeepseek === undefined) delete process.env.DEEPSEEK_API_KEY; else process.env.DEEPSEEK_API_KEY = savedDeepseek;
+    if (savedTokenHarbor === undefined) delete process.env.TOKENHARBOR_API_KEY; else process.env.TOKENHARBOR_API_KEY = savedTokenHarbor;
+    if (savedGemini === undefined) delete process.env.GEMINI_API_KEY; else process.env.GEMINI_API_KEY = savedGemini;
+  }
+
+  // ----------------------------------------------------------------
+  // 8. EMAIL DELIVERY RETRY TESTS
+  // ----------------------------------------------------------------
+  console.log('\n[8/8] Testing email retry behaviour (sendProgramEmail)...');
 
   // Credentials are stubbed here and the transport is injected, so nothing leaves the machine.
   const savedUser = process.env.GMAIL_USER;

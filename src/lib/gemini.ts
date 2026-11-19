@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type, type GenerateContentConfig } from '@google/genai';
 import { WorshipProgram, WorshipProgramSchema } from './schema';
+import { fetchVerseText } from './bible';
 
 /**
  * Per-attempt ceiling for an AI request. Kept well under the route's
@@ -140,6 +141,12 @@ export interface GenerateProgramParams {
   theme: string;
   verseReference: string;
   translation: string;
+  /**
+   * Authoritative verse text, fetched server-side from a Bible API. When set
+   * it overrides whatever the model produced, so the printed scripture is
+   * the real wording. Never populated from user input.
+   */
+  verseText?: string;
 }
 
 /**
@@ -174,6 +181,9 @@ export function normalizeLlmOutput(raw: unknown, params: GenerateProgramParams, 
   const verse = memoryVerse as Record<string, unknown>;
   verse.reference = params.verseReference.trim();
   verse.translation = params.translation.trim();
+  if (params.verseText && params.verseText.trim()) {
+    verse.text = params.verseText.trim();
+  }
 
   draft.day = day;
   draft.week_number = params.week;
@@ -204,7 +214,7 @@ Day: ${day}
 Week Number: ${params.week}
 Theme: ${params.theme}
 Bible Verse Reference: ${params.verseReference}
-Translation: ${params.translation}`;
+Translation: ${params.translation}${params.verseText ? `\nVerse Text (authoritative, use as-is): ${params.verseText}` : ''}`;
 
   // Determine endpoint URL
   let endpoint = customBaseUrl || process.env.AI_BASE_URL || process.env.DEEPSEEK_BASE_URL;
@@ -296,7 +306,7 @@ Day: ${day}
 Week Number: ${params.week}
 Theme: ${params.theme}
 Bible Verse Reference: ${params.verseReference}
-Translation: ${params.translation}`;
+Translation: ${params.translation}${params.verseText ? `\nVerse Text (authoritative, use as-is): ${params.verseText}` : ''}`;
 
   let lastError: Error | null = null;
   const candidateModels = configuredModel ? [configuredModel] : DEFAULT_GEMINI_MODELS;
@@ -346,8 +356,36 @@ Translation: ${params.translation}`;
  * 1. TokenHarbor / OpenAI-compatible proxy (TOKENHARBOR_API_KEY or AI_BASE_URL)
  * 2. DeepSeek (DEEPSEEK_API_KEY)
  * 3. Google Gemini (GEMINI_API_KEY)
+ *
+ * Before any provider runs, the exact verse text is fetched server-side from a
+ * Bible API. Provider-supplied text is only kept when that lookup misses
+ * (e.g. a copyrighted translation the free API cannot serve).
  */
-export async function generateWorshipProgram(params: GenerateProgramParams): Promise<WorshipProgram> {
+export interface GenerateWorshipProgramDeps {
+  /** Override for tests; defaults to fetchVerseText (real bible-api.com). */
+  fetchVerse?: (reference: string, translation: string) => Promise<string | null>;
+}
+
+export async function generateWorshipProgram(
+  params: GenerateProgramParams,
+  deps: GenerateWorshipProgramDeps = {}
+): Promise<WorshipProgram> {
+  const fetchVerse = deps.fetchVerse ?? ((reference, translation) => fetchVerseText({ reference, translation }));
+
+  // Fetch authoritative scripture once; a miss leaves params.verseText unset
+  // so the model's own text is used instead.
+  let verseText = params.verseText;
+  if (!verseText) {
+    const fetched = await fetchVerse(params.verseReference, params.translation);
+    if (fetched) {
+      verseText = fetched;
+      console.log(`[Bible API] Fetched ${params.verseReference} (${params.translation}) from the Bible API.`);
+    } else {
+      console.log(`[Bible API] No fetched text for ${params.verseReference} (${params.translation}); using the model's text.`);
+    }
+  }
+  const effectiveParams: GenerateProgramParams = verseText ? { ...params, verseText } : params;
+
   // Check for TokenHarbor key explicitly
   const tokenHarborKey = process.env.TOKENHARBOR_API_KEY;
   // Reject the placeholder values shipped in .env.example so an unfilled copy
@@ -356,7 +394,7 @@ export async function generateWorshipProgram(params: GenerateProgramParams): Pro
   if (tokenHarborKey && !tokenHarborPlaceholders.includes(tokenHarborKey)) {
     return generateWithOpenAICompatible(
       tokenHarborKey,
-      params,
+      effectiveParams,
       process.env.AI_BASE_URL || 'https://tokenharbor.ai/v1',
       process.env.AI_MODEL || DEFAULT_TOKENHARBOR_MODEL
     );
@@ -365,13 +403,13 @@ export async function generateWorshipProgram(params: GenerateProgramParams): Pro
   // Check for DeepSeek / Generic key
   const deepseekKey = process.env.DEEPSEEK_API_KEY;
   if (deepseekKey && deepseekKey !== 'your_deepseek_api_key_here') {
-    return generateWithOpenAICompatible(deepseekKey, params);
+    return generateWithOpenAICompatible(deepseekKey, effectiveParams);
   }
 
   // Check for Gemini key
   const geminiKey = process.env.GEMINI_API_KEY;
   if (geminiKey && geminiKey !== 'your_gemini_api_key_here') {
-    return generateWithGemini(geminiKey, params);
+    return generateWithGemini(geminiKey, effectiveParams);
   }
 
   throw new Error(

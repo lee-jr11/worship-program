@@ -30,6 +30,9 @@ Turns a weekly theme, week number, Bible verse, and recipient email into a perfe
    - `GMAIL_APP_PASSWORD`: 16-character App Password generated from Google Account (Security → 2-Step Verification → App Passwords).
    - `FROM_NAME`: e.g., "Wednesday Worship Program"
    - `SMTP_ALLOW_INSECURE_TLS` (optional, dev-only): set to `true` on a local machine behind a TLS-terminating proxy. Ignored when `NODE_ENV=production`.
+   - `BIBLE_API_BASE_URL` (optional): override the scripture lookup base URL. Defaults to `https://bible-api.com`.
+
+   **Scripture fidelity:** the route fetches the exact verse text server-side from [bible-api.com](https://bible-api.com) and forces it into the document, so the printed scripture is real wording rather than the model's recollection. That API needs no key but only serves **public-domain** translations (KJV, WEB, ASV, BSB, Darby, Douay-Rheims). For NIV, ESV, NKJV, NLT or a paraphrase the lookup cannot run, and the app falls back to the model's text — set `BIBLE_API_BASE_URL` to a licensed provider if you need those.
 
 3. **Run the development server:**
    ```bash

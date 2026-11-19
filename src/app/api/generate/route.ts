@@ -3,6 +3,7 @@ import { GenerateProgramInputSchema } from '@/lib/schema';
 import { generateWorshipProgram } from '@/lib/gemini';
 import { buildDocx } from '@/lib/docx';
 import { sendProgramEmail } from '@/lib/email';
+import { generateRateLimiter, clientKeyFromHeaders } from '@/lib/ratelimit';
 
 // Nodemailer needs TCP sockets, so this route must stay on the Node.js runtime.
 export const runtime = 'nodejs';
@@ -12,6 +13,15 @@ export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
+    // 0. Best-effort rate limit: this endpoint spends AI credits and sends mail.
+    const limit = generateRateLimiter.check(clientKeyFromHeaders(req.headers));
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Too many requests. Please wait a moment and try again.' },
+        { status: 429, headers: { 'Retry-After': String(limit.retryAfterSeconds) } }
+      );
+    }
+
     const rawBody = await req.json();
 
     // 1. Validate inputs
@@ -27,7 +37,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { day, week, theme, verseReference, translation, deliveryMethod, email } = parseResult.data;
+    const { day, week, theme, verseReference, translation, verseText, deliveryMethod, email } = parseResult.data;
 
     // 2. AI Generation
     console.log(`[Generate API] Generating program for ${day} Week ${week}: ${theme}...`);
@@ -37,6 +47,7 @@ export async function POST(req: NextRequest) {
       theme,
       verseReference,
       translation,
+      verseText,
     });
 
     // 3. Build .docx

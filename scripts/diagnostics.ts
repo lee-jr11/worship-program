@@ -2,6 +2,7 @@ import { GenerateProgramInputSchema, WorshipProgramSchema, WorshipProgram } from
 import { buildDocx } from '../src/lib/docx';
 import { normalizeLlmOutput } from '../src/lib/gemini';
 import { sendProgramEmail, ProgramMailMessage } from '../src/lib/email';
+import { createRateLimiter } from '../src/lib/ratelimit';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -27,7 +28,7 @@ async function runDiagnostics() {
   // ----------------------------------------------------------------
   // 1. INPUT SCHEMA VALIDATION TESTS
   // ----------------------------------------------------------------
-  console.log('[1/6] Testing Input Validation (GenerateProgramInputSchema)...');
+  console.log('[1/7] Testing Input Validation (GenerateProgramInputSchema)...');
 
   const validGoodInput = {
     day: 'Sunday',
@@ -89,10 +90,18 @@ async function runDiagnostics() {
   });
   assert(!emailDeliveryMissing.success, 'Email delivery fails when email is missing');
 
+  // Optional pasted verse text is accepted and trimmed; oversized input is rejected.
+  const parsedWithVerseText = GenerateProgramInputSchema.safeParse({ ...validGoodInput, verseText: '  For God so loved the world  ' });
+  assert(parsedWithVerseText.success && parsedWithVerseText.data.verseText === 'For God so loved the world', 'Verse text is accepted and trimmed');
+  const oversizedVerseText = GenerateProgramInputSchema.safeParse({ ...validGoodInput, verseText: 'x'.repeat(4001) });
+  assert(!oversizedVerseText.success, 'Rejects verse text beyond the length cap');
+  const oversizedTheme = GenerateProgramInputSchema.safeParse({ ...validGoodInput, theme: 'x'.repeat(201) });
+  assert(!oversizedTheme.success, 'Rejects an oversized theme');
+
   // ----------------------------------------------------------------
   // 2. OUTPUT SCHEMA CONTRACT TESTS
   // ----------------------------------------------------------------
-  console.log('\n[2/6] Testing LLM Output Contract (WorshipProgramSchema)...');
+  console.log('\n[2/7] Testing LLM Output Contract (WorshipProgramSchema)...');
 
   const validProgramData: WorshipProgram = {
     day: 'Wednesday',
@@ -143,7 +152,7 @@ async function runDiagnostics() {
   // ----------------------------------------------------------------
   // 3. DOCX BUILDER INTEGRITY TESTS
   // ----------------------------------------------------------------
-  console.log('\n[3/6] Testing Docx Document Generation...');
+  console.log('\n[3/7] Testing Docx Document Generation...');
 
   const startTime = Date.now();
   const buffer = await buildDocx(validProgramData);
@@ -159,7 +168,7 @@ async function runDiagnostics() {
   // ----------------------------------------------------------------
   // 4. ENVIRONMENT & SECURITY AUDIT
   // ----------------------------------------------------------------
-  console.log('\n[4/6] Security & Gitignore Audit...');
+  console.log('\n[4/7] Security & Gitignore Audit...');
 
   const gitignorePath = path.resolve(process.cwd(), '.gitignore');
   const gitignoreContent = fs.readFileSync(gitignorePath, 'utf-8');
@@ -173,14 +182,19 @@ async function runDiagnostics() {
   const envLocalPath = path.resolve(process.cwd(), '.env.local');
   if (process.env.CI) {
     console.log('  - .env.local presence check skipped (CI runs have no local env file)');
+  } else if (fs.existsSync(envLocalPath)) {
+    console.log('  ✓ .env.local exists locally for configuration');
+    passedTests++;
+    totalTests++;
   } else {
-    assert(fs.existsSync(envLocalPath), '.env.local exists locally for configuration');
+    // Not a failure: a fresh clone legitimately has no local env file yet.
+    console.log('  - .env.local not found (expected until you create it from .env.example)');
   }
 
   // ----------------------------------------------------------------
   // 5. LLM OUTPUT NORMALIZATION TESTS
   // ----------------------------------------------------------------
-  console.log('\n[5/6] Testing LLM output normalization (normalizeLlmOutput)...');
+  console.log('\n[5/7] Testing LLM output normalization (normalizeLlmOutput)...');
 
   const llmParams = {
     day: 'Sunday',
@@ -248,9 +262,27 @@ async function runDiagnostics() {
   );
 
   // ----------------------------------------------------------------
-  // 6. EMAIL DELIVERY RETRY TESTS
+  // 6. RATE LIMITER TESTS
   // ----------------------------------------------------------------
-  console.log('\n[6/6] Testing email retry behaviour (sendProgramEmail)...');
+  console.log('\n[6/7] Testing rate limiter (createRateLimiter)...');
+
+  let clock = 1_000_000;
+  const limiter = createRateLimiter({ limit: 3, windowMs: 60_000, now: () => clock });
+  assert(limiter.check('a').allowed, 'First request in a window is allowed');
+  assert(limiter.check('a').allowed, 'Second request is allowed');
+  const third = limiter.check('a');
+  assert(third.allowed && third.remaining === 0, 'Third request exhausts the window');
+  const fourth = limiter.check('a');
+  assert(!fourth.allowed, 'Fourth request is blocked');
+  assert(fourth.retryAfterSeconds > 0, 'Blocked response reports a retry delay');
+  assert(limiter.check('b').allowed, 'A different client is unaffected by another client\'s limit');
+  clock += 60_001; // advance past the window
+  assert(limiter.check('a').allowed, 'Requests are allowed again after the window resets');
+
+  // ----------------------------------------------------------------
+  // 7. EMAIL DELIVERY RETRY TESTS
+  // ----------------------------------------------------------------
+  console.log('\n[7/7] Testing email retry behaviour (sendProgramEmail)...');
 
   // Credentials are stubbed here and the transport is injected, so nothing leaves the machine.
   const savedUser = process.env.GMAIL_USER;

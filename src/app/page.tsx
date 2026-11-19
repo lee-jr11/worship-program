@@ -34,6 +34,7 @@ export default function WorshipProgramApp() {
   const [week, setWeek] = useState<string>('');
   const [theme, setTheme] = useState<string>('');
   const [verseReference, setVerseReference] = useState<string>('');
+  const [verseText, setVerseText] = useState<string>('');
   const [translation, setTranslation] = useState<string>('NIV');
   const [deliveryMethod, setDeliveryMethod] = useState<'device' | 'email'>('device');
   const [email, setEmail] = useState<string>('');
@@ -94,6 +95,7 @@ export default function WorshipProgramApp() {
           week: Number(week),
           theme: theme.trim(),
           verseReference: verseReference.trim(),
+          verseText: verseText.trim() || undefined,
           translation: translation.trim(),
           deliveryMethod,
           email: deliveryMethod === 'email' ? email.trim() : undefined,
@@ -143,6 +145,7 @@ export default function WorshipProgramApp() {
     setWeek(nextNum ? String(nextNum) : '');
     setTheme('');
     setVerseReference('');
+    setVerseText('');
   };
 
   return (
@@ -355,6 +358,25 @@ export default function WorshipProgramApp() {
                     <option value="Other">other</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Row 2b: Optional pasted scripture text */}
+              <div>
+                <label htmlFor="verseText" className="block text-xs font-semibold text-slate-700 lowercase tracking-wider mb-1.5">
+                  verse text (optional)
+                </label>
+                <textarea
+                  id="verseText"
+                  rows={4}
+                  placeholder="paste the exact verse wording here so the document uses the real scripture, e.g. the lord had said to abram..."
+                  value={verseText}
+                  onChange={(e) => setVerseText(e.target.value)}
+                  disabled={isLoading}
+                  className="field w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white resize-y"
+                />
+                <p className="mt-1 text-[11px] text-slate-500 leading-relaxed">
+                  recommended: without this, the verse text is written by the ai and may not match your translation word-for-word.
+                </p>
               </div>
 
               {/* Row 3: Destination Radio Choice */}

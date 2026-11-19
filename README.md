@@ -5,7 +5,7 @@ Turns a weekly theme, week number, Bible verse, and recipient email into a perfe
 ## Stack
 - **Framework**: Next.js (App Router, TypeScript, Tailwind CSS)
 - **Deployment**: Vercel (Hobby tier - free)
-- **AI Engine**: Google Gemini free tier (`gemini-2.0-flash` via `@google/genai`)
+- **AI Engine**: `@google/genai` (Gemini Flash free tier) or an OpenAI-compatible provider (TokenHarbor / DeepSeek)
 - **Document Generation**: `docx` (npm)
 - **Email Delivery**: Nodemailer + Gmail SMTP (App Password)
 
@@ -24,11 +24,13 @@ Turns a weekly theme, week number, Bible verse, and recipient email into a perfe
    Fill in the required values:
    - **AI provider** (pick one, checked in this order):
      - `TOKENHARBOR_API_KEY`: TokenHarbor key (`thk_...`). Optional overrides: `AI_BASE_URL` (default `https://tokenharbor.ai/v1`) and `AI_MODEL` (default `deepseek-v4.1-flash:free`).
-     - `DEEPSEEK_API_KEY`: Direct DeepSeek key.
-     - `GEMINI_API_KEY`: Get a free key at [Google AI Studio](https://aistudio.google.com/) (no credit card required).
+     - `DEEPSEEK_API_KEY`: Direct DeepSeek key (default model `deepseek-flash`).
+     - `GEMINI_API_KEY`: Get a free key at [Google AI Studio](https://aistudio.google.com/) (no credit card required). Models tried in order: `gemini-2.5-flash`, `gemini-3.8-flash` (override with `GEMINI_MODEL`).
    - `GMAIL_USER`: Dedicated church / app Gmail address.
    - `GMAIL_APP_PASSWORD`: 16-character App Password generated from Google Account (Security → 2-Step Verification → App Passwords).
    - `FROM_NAME`: e.g., "Wednesday Worship Program"
+   - `SMTP_ALLOW_INSECURE_TLS` (optional, dev-only): set to `true` on a local machine behind a TLS-terminating proxy. Ignored when `NODE_ENV=production`.
+   - Provide **verse text** in the form whenever possible: pasting the exact wording keeps the printed scripture faithful to your translation instead of relying on the model to recall it.
 
 3. **Run the development server:**
    ```bash
@@ -74,4 +76,6 @@ Turns a weekly theme, week number, Bible verse, and recipient email into a perfe
 ## Security Guidelines
 - **Never commit `.env.local`**. It is already in `.gitignore`.
 - Keys stay server-side in API routes and server actions. No `NEXT_PUBLIC_*` secrets are exposed to the browser.
+- `/api/generate` applies a best-effort in-memory rate limit (10 requests/minute per client). On serverless hosting each instance keeps its own counters, so it is a soft guard only — still protect the deployment at the hosting layer.
+- SMTP certificate verification is on. Only set `SMTP_ALLOW_INSECURE_TLS=true` on a local dev machine behind a TLS-terminating proxy; it is ignored when `NODE_ENV=production`.
 - If an API key or App Password is ever compromised, revoke it immediately at the provider.

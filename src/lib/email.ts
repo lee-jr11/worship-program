@@ -61,12 +61,16 @@ function isTransientSmtpError(error: unknown): boolean {
 }
 
 function createGmailMailer({ user, pass }: { user: string; pass: string }): Mailer {
+  // Certificate verification must stay ON in production. Only relax it when
+  // explicitly opted in (e.g. a local dev box behind a TLS-terminating proxy),
+  // so mail credentials and content cannot be intercepted in transit.
+  const allowInsecureTls =
+    process.env.SMTP_ALLOW_INSECURE_TLS === 'true' && process.env.NODE_ENV !== 'production';
+
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: { user, pass },
-    tls: {
-      rejectUnauthorized: false, // Prevents certificate rejection on local proxies
-    },
+    ...(allowInsecureTls ? { tls: { rejectUnauthorized: false } } : {}),
     connectionTimeout: 20000,
     greetingTimeout: 15000,
     socketTimeout: 20000,

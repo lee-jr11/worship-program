@@ -1,5 +1,28 @@
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI, Type, type GenerateContentConfig } from '@google/genai';
 import { WorshipProgram, WorshipProgramSchema } from './schema';
+
+/**
+ * Per-attempt ceiling for an AI request. Kept well under the route's
+ * `maxDuration = 60` so a hung provider cannot consume the whole budget
+ * (each provider loop can run 2 attempts, i.e. 2 x 15s worst case).
+ */
+export const AI_REQUEST_TIMEOUT_MS = 15_000;
+
+/**
+ * Model defaults, kept in one place so code, `.env.example` and the README
+ * cannot drift apart again.
+ *
+ * - TokenHarbor: an OpenAI-compatible aggregator; its current free DeepSeek id.
+ * - DeepSeek: "deepseek-chat" was retired in favour of "deepseek-flash".
+ * - Gemini: fast Flash tiers. Old ids (gemini-1.5-flash, gemini-2.0-flash) are
+ *   retired; these are tried in order until one responds.
+ */
+export const DEFAULT_TOKENHARBOR_MODEL = 'deepseek-v4.1-flash:free';
+export const DEFAULT_DEEPSEEK_MODEL = 'deepseek-flash';
+export const DEFAULT_GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-3.8-flash'];
+
+/** Substrings of Gemini model ids that accept a zero thinking budget. */
+const THINKING_CAPABLE_MODELS = ['2.5', '3.'];
 
 const SYSTEM_INSTRUCTION = `You are an expert pastoral content writer for a weekly worship program.
 You will receive:
@@ -211,7 +234,7 @@ Translation: ${params.translation}${params.verseText ? `\nVerse Text: ${params.v
     customModel ||
     process.env.AI_MODEL ||
     process.env.DEEPSEEK_MODEL ||
-    (endpoint.includes('tokenharbor') ? 'deepseek-v4.1-flash:free' : 'deepseek-chat');
+    (endpoint.includes('tokenharbor') ? DEFAULT_TOKENHARBOR_MODEL : DEFAULT_DEEPSEEK_MODEL);
 
   console.log(`[AI Request] Dispatching to: ${completionsUrl} (model: ${model})`);
 
@@ -240,6 +263,7 @@ Translation: ${params.translation}${params.verseText ? `\nVerse Text: ${params.v
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify(requestBody),
+        signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
       });
 
       if (!response.ok) {
@@ -279,30 +303,30 @@ Bible Verse Reference: ${params.verseReference}
 Translation: ${params.translation}${params.verseText ? `\nVerse Text: ${params.verseText}` : ''}`;
 
   let lastError: Error | null = null;
-  // Prioritize gemini-1.5-flash for fastest, most reliable 1-3s responses
-  const candidateModels = configuredModel
-    ? [configuredModel]
-    : ['gemini-1.5-flash', 'gemini-2.5-flash'];
+  const candidateModels = configuredModel ? [configuredModel] : DEFAULT_GEMINI_MODELS;
 
   for (let attempt = 1; attempt <= candidateModels.length; attempt++) {
     const currentModel = candidateModels[attempt - 1];
     try {
       console.log(`[Gemini Request] Calling ${currentModel} (attempt ${attempt})...`);
-      const config: Record<string, unknown> = {
+      const config: GenerateContentConfig = {
         systemInstruction: SYSTEM_INSTRUCTION,
         responseMimeType: 'application/json',
         responseSchema: GEMINI_RESPONSE_SCHEMA,
         temperature: 0.7,
+        abortSignal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
       };
 
-      if (currentModel.includes('3.8')) {
+      // Thinking-capable models honour a zero thinking budget, which keeps
+      // latency down; models that lack the field ignore it.
+      if (THINKING_CAPABLE_MODELS.some((id) => currentModel.includes(id))) {
         config.thinkingConfig = { thinkingBudget: 0 };
       }
 
       const response = await ai.models.generateContent({
         model: currentModel,
         contents: userPrompt,
-        config: config as any,
+        config,
       });
 
       const responseText = response.text;
@@ -338,7 +362,7 @@ export async function generateWorshipProgram(params: GenerateProgramParams): Pro
       tokenHarborKey,
       params,
       process.env.AI_BASE_URL || 'https://tokenharbor.ai/v1',
-      process.env.AI_MODEL || 'deepseek-v4.1-flash:free'
+      process.env.AI_MODEL || DEFAULT_TOKENHARBOR_MODEL
     );
   }
 
